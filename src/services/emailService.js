@@ -3,6 +3,7 @@ const handlebars = require('handlebars');
 const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
+const pdfService = require('./pdfService');
 
 class EmailService {
   constructor() {
@@ -242,7 +243,7 @@ class EmailService {
         customerEmail,
         customerName,
         compositionTitle,
-        pdfPath,
+        compositionId,
         orderId,
         purchaseDate,
         price
@@ -282,13 +283,23 @@ class EmailService {
         attachments: []
       };
 
-      // Add PDF attachment if file exists
-      if (pdfPath && fs.existsSync(pdfPath)) {
-        mailOptions.attachments.push({
-          filename: `${compositionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-          path: pdfPath,
-          contentType: 'application/pdf'
-        });
+      // Get PDF using the new PDF service
+      if (compositionId) {
+        try {
+          const pdf = await pdfService.getCompositionPdf(compositionId);
+          if (pdf && pdf.buffer) {
+            mailOptions.attachments.push({
+              filename: `${compositionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+              content: pdf.buffer,
+              contentType: 'application/pdf'
+            });
+            console.log(`📎 PDF attached to email: ${compositionTitle} (${pdf.size} bytes)`);
+          } else {
+            console.warn(`⚠️ No PDF found for composition: ${compositionId}`);
+          }
+        } catch (error) {
+          console.error('Error getting PDF for email:', error);
+        }
       }
 
       // Send email

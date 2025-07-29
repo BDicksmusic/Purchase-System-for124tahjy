@@ -170,7 +170,7 @@ class NotionService {
       category: this.getPropertyValue(properties, 'Category', 'select'),
       difficulty: this.getPropertyValue(properties, 'Difficulty', 'select'),
       composer: this.getPropertyValue(properties, 'Composer', 'rich_text'),
-      pdfUrl: this.getPropertyValue(properties, 'PDF URL', 'url'),
+      pdfUrl: this.getPropertyValue(properties, 'Website Download File', 'url'),
       imageUrl: this.getPropertyValue(properties, 'Image URL', 'url'),
       lastEdited: page.last_edited_time,
       created: page.created_time
