@@ -2,6 +2,7 @@ const nodemailer = require('nodemailer');
 const handlebars = require('handlebars');
 const fs = require('fs-extra');
 const path = require('path');
+const axios = require('axios');
 
 class EmailService {
   constructor() {
@@ -80,6 +81,160 @@ class EmailService {
     return templates;
   }
 
+  // Send purchase confirmation using SendGrid Dynamic Template
+  async sendPurchaseConfirmationWithSendGridTemplate(purchaseData) {
+    try {
+      const {
+        customerEmail,
+        customerName,
+        compositionTitle,
+        pdfPath,
+        orderId,
+        purchaseDate,
+        price
+      } = purchaseData;
+
+      // SendGrid Dynamic Template ID (you'll set this in your .env)
+      const templateId = process.env.SENDGRID_PURCHASE_TEMPLATE_ID;
+      
+      if (!templateId) {
+        throw new Error('SENDGRID_PURCHASE_TEMPLATE_ID not configured');
+      }
+
+      // Prepare dynamic template data
+      const dynamicTemplateData = {
+        customer_name: customerName || 'Valued Customer',
+        composition_title: compositionTitle,
+        order_id: orderId,
+        purchase_date: purchaseDate,
+        price: price ? `$${price}` : 'N/A',
+        download_link: `${process.env.WEBSITE_URL}/download/${orderId}`,
+        support_email: process.env.EMAIL_FROM
+      };
+
+      // Prepare email payload for SendGrid API
+      const emailPayload = {
+        personalizations: [
+          {
+            to: [{ email: customerEmail, name: customerName }],
+            dynamic_template_data: dynamicTemplateData
+          }
+        ],
+        from: {
+          email: process.env.EMAIL_FROM,
+          name: process.env.EMAIL_FROM_NAME || 'Your Music Store'
+        },
+        template_id: templateId,
+        attachments: []
+      };
+
+      // Add PDF attachment if available
+      if (pdfPath && await fs.pathExists(pdfPath)) {
+        const pdfBuffer = await fs.readFile(pdfPath);
+        const pdfBase64 = pdfBuffer.toString('base64');
+        
+        emailPayload.attachments.push({
+          content: pdfBase64,
+          filename: `${compositionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+          type: 'application/pdf',
+          disposition: 'attachment'
+        });
+      }
+
+      // Send email via SendGrid API
+      const response = await axios.post(
+        'https://api.sendgrid.com/v3/mail/send',
+        emailPayload,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Purchase confirmation sent via SendGrid template:', response.status);
+      return { success: true, messageId: response.headers['x-message-id'] };
+
+    } catch (error) {
+      console.error('Error sending purchase confirmation via SendGrid template:', error);
+      throw error;
+    }
+  }
+
+  // Send purchase confirmation using Mailgun Template
+  async sendPurchaseConfirmationWithMailgunTemplate(purchaseData) {
+    try {
+      const {
+        customerEmail,
+        customerName,
+        compositionTitle,
+        pdfPath,
+        orderId,
+        purchaseDate,
+        price
+      } = purchaseData;
+
+      // Mailgun Template Name (you'll set this in your .env)
+      const templateName = process.env.MAILGUN_PURCHASE_TEMPLATE_NAME;
+      
+      if (!templateName) {
+        throw new Error('MAILGUN_PURCHASE_TEMPLATE_NAME not configured');
+      }
+
+      // Prepare template variables for Mailgun
+      const templateVariables = {
+        'customer_name': customerName || 'Valued Customer',
+        'composition_title': compositionTitle,
+        'order_id': orderId,
+        'purchase_date': purchaseDate,
+        'price': price ? `$${price}` : 'N/A',
+        'download_link': `${process.env.WEBSITE_URL}/download/${orderId}`,
+        'support_email': process.env.EMAIL_FROM
+      };
+
+      // Prepare form data for Mailgun API
+      const formData = new URLSearchParams();
+      formData.append('from', `${process.env.EMAIL_FROM_NAME || 'Your Music Store'} <${process.env.EMAIL_FROM}>`);
+      formData.append('to', customerEmail);
+      formData.append('subject', `Thank you for your purchase - ${compositionTitle}`);
+      formData.append('template', templateName);
+      
+      // Add template variables
+      Object.entries(templateVariables).forEach(([key, value]) => {
+        formData.append(`v:${key}`, value);
+      });
+
+      // Add PDF attachment if available
+      if (pdfPath && await fs.pathExists(pdfPath)) {
+        const pdfBuffer = await fs.readFile(pdfPath);
+        formData.append('attachment', pdfBuffer, {
+          filename: `${compositionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+          contentType: 'application/pdf'
+        });
+      }
+
+      // Send email via Mailgun API
+      const response = await axios.post(
+        `https://api.mailgun.net/v3/${process.env.MAILGUN_DOMAIN}/messages`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Basic ${Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString('base64')}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+
+      console.log('Purchase confirmation sent via Mailgun template:', response.status);
+      return { success: true, messageId: response.data.id };
+
+    } catch (error) {
+      console.error('Error sending purchase confirmation via Mailgun template:', error);
+      throw error;
+    }
+  }
+
   // Send purchase confirmation email with PDF attachment
   async sendPurchaseConfirmation(purchaseData) {
     try {
@@ -92,6 +247,16 @@ class EmailService {
         purchaseDate,
         price
       } = purchaseData;
+
+      // Check if SendGrid template is configured
+      if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_PURCHASE_TEMPLATE_ID) {
+        return await this.sendPurchaseConfirmationWithSendGridTemplate(purchaseData);
+      }
+
+      // Check if Mailgun template is configured
+      if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_PURCHASE_TEMPLATE_NAME) {
+        return await this.sendPurchaseConfirmationWithMailgunTemplate(purchaseData);
+      }
 
       // Prepare email template data
       const templateData = {

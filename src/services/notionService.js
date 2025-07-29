@@ -10,6 +10,48 @@ class NotionService {
       'Notion-Version': '2022-06-28',
       'Content-Type': 'application/json'
     };
+    
+    // Security: Validate required environment variables
+    this.validateConfiguration();
+  }
+
+  // Security: Validate configuration on startup
+  validateConfiguration() {
+    if (!this.apiKey || this.apiKey === 'your_notion_api_key_here' || this.apiKey.length < 10) {
+      throw new Error('NOTION_API_KEY is not properly configured');
+    }
+    if (!this.databaseId || this.databaseId === 'your_notion_database_id_here' || this.databaseId.length < 10) {
+      throw new Error('NOTION_DATABASE_ID is not properly configured');
+    }
+  }
+
+  // Security: Input validation for composition data
+  validateCompositionData(compositionData) {
+    const requiredFields = ['title', 'price'];
+    const missingFields = requiredFields.filter(field => !compositionData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+    
+    if (compositionData.price && (isNaN(compositionData.price) || compositionData.price < 0)) {
+      throw new Error('Price must be a valid positive number');
+    }
+    
+    return true;
+  }
+
+  // Security: Audit logging for sensitive operations
+  logAuditEvent(action, compositionId, details = {}) {
+    const auditLog = {
+      timestamp: new Date().toISOString(),
+      action,
+      compositionId,
+      details,
+      userAgent: 'NotionService'
+    };
+    
+    console.log('🔒 AUDIT LOG:', JSON.stringify(auditLog, null, 2));
   }
 
   // Get all compositions from Notion database
@@ -59,6 +101,13 @@ class NotionService {
   // Update composition price in Notion
   async updateCompositionPrice(compositionId, newPrice) {
     try {
+      // Security: Validate input
+      if (!compositionId || !newPrice || isNaN(parseFloat(newPrice)) || parseFloat(newPrice) < 0) {
+        throw new Error('Valid composition ID and positive price are required');
+      }
+
+      const oldPrice = await this.getCompositionPrice(compositionId);
+      
       const response = await axios.patch(
         `${this.baseURL}/pages/${compositionId}`,
         {
@@ -71,11 +120,29 @@ class NotionService {
         { headers: this.headers }
       );
 
+      // Security: Audit log the price change
+      this.logAuditEvent('PRICE_UPDATE', compositionId, {
+        oldPrice: oldPrice,
+        newPrice: parseFloat(newPrice),
+        change: parseFloat(newPrice) - oldPrice
+      });
+
       console.log(`✅ Updated price for composition ${compositionId} to $${newPrice}`);
       return this.parseNotionPage(response.data);
     } catch (error) {
       console.error('Error updating composition price in Notion:', error);
       throw new Error(`Notion update error: ${error.message}`);
+    }
+  }
+
+  // Helper method to get current price
+  async getCompositionPrice(compositionId) {
+    try {
+      const composition = await this.getComposition(compositionId);
+      return composition.price || 0;
+    } catch (error) {
+      console.error('Error getting composition price:', error);
+      return 0;
     }
   }
 

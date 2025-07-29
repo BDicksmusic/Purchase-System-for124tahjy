@@ -2,6 +2,62 @@ const express = require('express');
 const router = express.Router();
 const notionService = require('../services/notionService');
 
+// Security: Input validation middleware
+const validateCompositionId = (req, res, next) => {
+  const { compositionId } = req.params;
+  if (!compositionId || compositionId.length < 10) {
+    return res.status(400).json({
+      success: false,
+      error: 'Valid composition ID is required'
+    });
+  }
+  next();
+};
+
+const validatePriceUpdate = (req, res, next) => {
+  const { price } = req.body;
+  if (!price || isNaN(parseFloat(price)) || parseFloat(price) < 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Valid positive price is required'
+    });
+  }
+  next();
+};
+
+// Security: Rate limiting (basic implementation)
+const requestCounts = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 100; // max requests per window
+
+const rateLimit = (req, res, next) => {
+  const clientIP = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (!requestCounts.has(clientIP)) {
+    requestCounts.set(clientIP, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+  } else {
+    const client = requestCounts.get(clientIP);
+    if (now > client.resetTime) {
+      client.count = 1;
+      client.resetTime = now + RATE_LIMIT_WINDOW;
+    } else {
+      client.count++;
+    }
+    
+    if (client.count > RATE_LIMIT_MAX) {
+      return res.status(429).json({
+        success: false,
+        error: 'Rate limit exceeded. Please try again later.'
+      });
+    }
+  }
+  next();
+};
+
+// Apply rate limiting to all routes
+router.use(rateLimit);
+
 // Get all compositions from Notion
 router.get('/compositions', async (req, res) => {
   try {
@@ -23,7 +79,7 @@ router.get('/compositions', async (req, res) => {
 });
 
 // Get a specific composition by ID
-router.get('/compositions/:compositionId', async (req, res) => {
+router.get('/compositions/:compositionId', validateCompositionId, async (req, res) => {
   try {
     const { compositionId } = req.params;
     
@@ -51,17 +107,10 @@ router.get('/compositions/:compositionId', async (req, res) => {
 });
 
 // Update composition price in Notion
-router.patch('/compositions/:compositionId/price', async (req, res) => {
+router.patch('/compositions/:compositionId/price', validateCompositionId, validatePriceUpdate, async (req, res) => {
   try {
     const { compositionId } = req.params;
     const { price } = req.body;
-
-    if (!price || isNaN(parseFloat(price))) {
-      return res.status(400).json({
-        success: false,
-        error: 'Valid price is required'
-      });
-    }
 
     const updatedComposition = await notionService.updateCompositionPrice(compositionId, price);
 
