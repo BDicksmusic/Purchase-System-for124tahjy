@@ -17,12 +17,18 @@ class NotionService {
 
   // Security: Validate configuration on startup
   validateConfiguration() {
+    console.log('🔍 Debug: NOTION_API_KEY length:', this.apiKey ? this.apiKey.length : 'undefined');
+    console.log('🔍 Debug: NOTION_DATABASE_ID length:', this.databaseId ? this.databaseId.length : 'undefined');
+    
     if (!this.apiKey || this.apiKey === 'your_notion_api_key_here' || this.apiKey.length < 10) {
+      console.log('❌ NOTION_API_KEY validation failed:', this.apiKey);
       throw new Error('NOTION_API_KEY is not properly configured');
     }
     if (!this.databaseId || this.databaseId === 'your_notion_database_id_here' || this.databaseId.length < 10) {
+      console.log('❌ NOTION_DATABASE_ID validation failed:', this.databaseId);
       throw new Error('NOTION_DATABASE_ID is not properly configured');
     }
+    console.log('✅ Notion configuration validation passed');
   }
 
   // Security: Input validation for composition data

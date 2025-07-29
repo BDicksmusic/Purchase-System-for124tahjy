@@ -6,12 +6,12 @@ const axios = require('axios');
 
 class EmailService {
   constructor() {
-    this.transporter = this.createTransporter();
+    this.transporter = this.createTransport();
     this.templates = this.loadTemplates();
   }
 
   // Create email transporter based on configuration
-  createTransporter() {
+  createTransport() {
     const config = {
       host: process.env.EMAIL_HOST,
       port: parseInt(process.env.EMAIL_PORT) || 587,
@@ -52,7 +52,7 @@ class EmailService {
       };
     }
 
-    return nodemailer.createTransporter(config);
+    return nodemailer.createTransport(config);
   }
 
   // Load email templates

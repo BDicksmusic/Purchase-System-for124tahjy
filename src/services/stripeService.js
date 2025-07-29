@@ -1,6 +1,17 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { v4: uuidv4 } = require('uuid');
 
+// Security: Log API key usage (without exposing the key)
+console.log('🔒 Stripe API Key Status:', process.env.STRIPE_SECRET_KEY ? 
+  `Configured (${process.env.STRIPE_SECRET_KEY.substring(0, 8)}...)` : 
+  'Not configured');
+
+// Security: Validate API key format
+if (process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.startsWith('sk_')) {
+  console.error('❌ Invalid Stripe API key format');
+  throw new Error('Invalid Stripe API key format');
+}
+
 class StripeService {
   constructor() {
     this.stripe = stripe;

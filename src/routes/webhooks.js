@@ -19,6 +19,9 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
 
   // Handle the event
   try {
+    // Log the event type for debugging
+    console.log(`📨 Processing webhook event: ${event.type}`);
+    
     switch (event.type) {
       case 'payment_intent.succeeded':
         await handlePaymentSuccess(event.data.object);
@@ -43,6 +46,13 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
     res.json({ received: true });
   } catch (error) {
     console.error('Error processing webhook:', error);
+    
+    // Handle OAuth-related errors specifically
+    if (error.code === 'resource_missing' && error.message.includes('oauthTokenSet')) {
+      console.log('⚠️ OAuth token error - this may be from an old webhook event');
+      return res.json({ received: true }); // Acknowledge to prevent retries
+    }
+    
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });

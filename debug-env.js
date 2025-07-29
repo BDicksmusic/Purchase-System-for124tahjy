@@ -13,8 +13,18 @@ const keys = [
 
 keys.forEach(key => {
   const value = process.env[key];
-  console.log(`${key}: ${value ? value.substring(0, 20) + '...' : 'NOT SET'}`);
+  console.log(`${key}: ${value || 'NOT SET'}`);
 });
 
 console.log('\n📁 Current working directory:', process.cwd());
-console.log('📄 .env file exists:', require('fs').existsSync('.env')); 
+console.log('📄 .env file exists:', require('fs').existsSync('.env'));
+
+// Check if .env file is readable
+try {
+  const fs = require('fs');
+  const envContent = fs.readFileSync('.env', 'utf8');
+  console.log('\n📄 .env file content (first 500 chars):');
+  console.log(envContent.substring(0, 500));
+} catch (error) {
+  console.log('❌ Error reading .env file:', error.message);
+} 
