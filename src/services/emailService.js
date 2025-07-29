@@ -3,7 +3,7 @@ const handlebars = require('handlebars');
 const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
-const pdfService = require('./pdfService');
+const fileService = require('./pdfService'); // Updated to use FileService
 
 class EmailService {
   constructor() {
@@ -283,22 +283,22 @@ class EmailService {
         attachments: []
       };
 
-      // Get PDF using the new PDF service
+      // Get file package using the new File service
       if (compositionId) {
         try {
-          const pdf = await pdfService.getCompositionPdf(compositionId);
-          if (pdf && pdf.buffer) {
+          const file = await fileService.getCompositionFile(compositionId);
+          if (file && file.buffer) {
             mailOptions.attachments.push({
-              filename: `${compositionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-              content: pdf.buffer,
-              contentType: 'application/pdf'
+              filename: `${compositionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.zip`,
+              content: file.buffer,
+              contentType: 'application/zip'
             });
-            console.log(`📎 PDF attached to email: ${compositionTitle} (${pdf.size} bytes)`);
+            console.log(`📎 File package attached to email: ${compositionTitle} (${file.size} bytes)`);
           } else {
-            console.warn(`⚠️ No PDF found for composition: ${compositionId}`);
+            console.warn(`⚠️ No file package found for composition: ${compositionId}`);
           }
         } catch (error) {
-          console.error('Error getting PDF for email:', error);
+          console.error('Error getting file package for email:', error);
         }
       }
 

@@ -68,7 +68,7 @@ class NotionService {
         {
           filter: {
             property: 'Status',
-            select: {
+            status: {
               equals: 'Published'
             }
           },
@@ -166,11 +166,11 @@ class NotionService {
       title: this.getPropertyValue(properties, 'Title', 'title'),
       description: this.getPropertyValue(properties, 'Description', 'rich_text'),
       price: this.getPropertyValue(properties, 'Price', 'number'),
-      status: this.getPropertyValue(properties, 'Status', 'select'),
+      status: this.getPropertyValue(properties, 'Status', 'status'),
       category: this.getPropertyValue(properties, 'Category', 'select'),
       difficulty: this.getPropertyValue(properties, 'Difficulty', 'select'),
       composer: this.getPropertyValue(properties, 'Composer', 'rich_text'),
-      pdfUrl: this.getPropertyValue(properties, 'Website Download File', 'url'),
+      pdfUrl: this.getPropertyValue(properties, 'Website Download File', 'files'),
       imageUrl: this.getPropertyValue(properties, 'Image URL', 'url'),
       lastEdited: page.last_edited_time,
       created: page.created_time
@@ -192,8 +192,21 @@ class NotionService {
         return property.number || 0;
       case 'select':
         return property.select?.name || '';
+      case 'status':
+        return property.status?.name || '';
       case 'url':
         return property.url || '';
+      case 'files':
+        // Handle files property - return the first file URL if available
+        if (property.files && property.files.length > 0) {
+          const file = property.files[0];
+          if (file.type === 'external') {
+            return file.external.url;
+          } else if (file.type === 'file') {
+            return file.file.url;
+          }
+        }
+        return null;
       case 'checkbox':
         return property.checkbox || false;
       default:

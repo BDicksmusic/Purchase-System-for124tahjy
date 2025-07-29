@@ -3,71 +3,71 @@ const path = require('path');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 
-class PdfService {
+class FileService {
   constructor() {
-    this.pdfStoragePath = process.env.PDF_STORAGE_PATH || './storage/pdfs';
+    this.fileStoragePath = process.env.FILE_STORAGE_PATH || './storage/files';
     this.ensureDirectories();
   }
 
   // Ensure necessary directories exist
   async ensureDirectories() {
     try {
-      await fs.ensureDir(this.pdfStoragePath);
-      await fs.ensureDir(path.join(this.pdfStoragePath, 'compositions'));
-      await fs.ensureDir(path.join(this.pdfStoragePath, 'temp'));
+      await fs.ensureDir(this.fileStoragePath);
+      await fs.ensureDir(path.join(this.fileStoragePath, 'compositions'));
+      await fs.ensureDir(path.join(this.fileStoragePath, 'temp'));
     } catch (error) {
-      console.error('Error creating PDF directories:', error);
+      console.error('Error creating file directories:', error);
     }
   }
 
-  // Get PDF for a composition using multiple methods
-  async getCompositionPdf(compositionId, compositionData = null) {
+  // Get file package for a composition using multiple methods
+  async getCompositionFile(compositionId, compositionData = null) {
     try {
-      console.log(`🔍 Looking for PDF for composition: ${compositionId}`);
+      console.log(`🔍 Looking for file package for composition: ${compositionId}`);
 
       // Method 1: Check local storage first
-      const localPdf = await this.getLocalPdf(compositionId);
-      if (localPdf) {
-        console.log(`✅ Found local PDF for composition: ${compositionId}`);
-        return localPdf;
+      const localFile = await this.getLocalFile(compositionId);
+      if (localFile) {
+        console.log(`✅ Found local file package for composition: ${compositionId}`);
+        return localFile;
       }
 
       // Method 2: Download from Notion URL if available
       if (compositionData && compositionData.pdfUrl) {
-        console.log(`📥 Downloading PDF from Notion URL: ${compositionData.pdfUrl}`);
-        const downloadedPdf = await this.downloadFromUrl(compositionData.pdfUrl, compositionId);
-        if (downloadedPdf) {
-          return downloadedPdf;
+        console.log(`📥 Downloading file package from Notion URL: ${compositionData.pdfUrl}`);
+        const downloadedFile = await this.downloadFromUrl(compositionData.pdfUrl, compositionId);
+        if (downloadedFile) {
+          return downloadedFile;
         }
       }
 
       // Method 3: Check cloud storage URLs
       if (compositionData && compositionData.cloudPdfUrl) {
-        console.log(`☁️ Downloading PDF from cloud storage: ${compositionData.cloudPdfUrl}`);
-        const cloudPdf = await this.downloadFromUrl(compositionData.cloudPdfUrl, compositionId);
-        if (cloudPdf) {
-          return cloudPdf;
+        console.log(`☁️ Downloading file package from cloud storage: ${compositionData.cloudPdfUrl}`);
+        const cloudFile = await this.downloadFromUrl(compositionData.cloudPdfUrl, compositionId);
+        if (cloudFile) {
+          return cloudFile;
         }
       }
 
-      console.warn(`⚠️ No PDF found for composition: ${compositionId}`);
+      console.warn(`⚠️ No file package found for composition: ${compositionId}`);
       return null;
     } catch (error) {
-      console.error('Error getting composition PDF:', error);
+      console.error('Error getting composition file package:', error);
       return null;
     }
   }
 
-  // Get PDF from local storage
-  async getLocalPdf(compositionId) {
+  // Get file from local storage
+  async getLocalFile(compositionId) {
     try {
-      const pdfPath = path.join(this.pdfStoragePath, 'compositions', `${compositionId}.pdf`);
+      const filePath = path.join(this.fileStoragePath, 'compositions', `${compositionId}.zip`);
       
-      if (await fs.pathExists(pdfPath)) {
-        const stats = await fs.stat(pdfPath);
+      if (await fs.pathExists(filePath)) {
+        const stats = await fs.stat(filePath);
         return {
-          path: pdfPath,
-          buffer: await fs.readFile(pdfPath),
+          path: filePath,
+          buffer: await fs.readFile(filePath),
           size: stats.size,
           source: 'local'
         };
@@ -75,31 +75,31 @@ class PdfService {
 
       return null;
     } catch (error) {
-      console.error('Error getting local PDF:', error);
+      console.error('Error getting local file:', error);
       return null;
     }
   }
 
-  // Download PDF from URL
+  // Download file from URL
   async downloadFromUrl(url, compositionId) {
     try {
-      console.log(`📥 Downloading PDF from: ${url}`);
+      console.log(`📥 Downloading file package from: ${url}`);
       
       const response = await axios.get(url, {
         responseType: 'arraybuffer',
         timeout: 30000, // 30 second timeout
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; PDF-Downloader/1.0)'
+          'User-Agent': 'Mozilla/5.0 (compatible; File-Downloader/1.0)'
         }
       });
 
       if (response.status === 200 && response.data) {
         const buffer = Buffer.from(response.data);
         
-        // Validate it's actually a PDF
-        if (this.isValidPdf(buffer)) {
+        // Validate it's actually a ZIP file
+        if (this.isValidZip(buffer)) {
           // Store locally for future use
-          const localPath = await this.storePdf(compositionId, buffer);
+          const localPath = await this.storeFile(compositionId, buffer);
           
           return {
             path: localPath,
@@ -109,48 +109,50 @@ class PdfService {
             originalUrl: url
           };
         } else {
-          console.warn(`⚠️ Downloaded file is not a valid PDF: ${url}`);
+          console.warn(`⚠️ Downloaded file is not a valid ZIP: ${url}`);
           return null;
         }
       }
 
       return null;
     } catch (error) {
-      console.error(`Error downloading PDF from ${url}:`, error.message);
+      console.error(`Error downloading file from ${url}:`, error.message);
       return null;
     }
   }
 
-  // Store PDF locally
-  async storePdf(compositionId, buffer) {
+  // Store file locally
+  async storeFile(compositionId, buffer) {
     try {
-      const pdfPath = path.join(this.pdfStoragePath, 'compositions', `${compositionId}.pdf`);
-      await fs.ensureDir(path.dirname(pdfPath));
-      await fs.writeFile(pdfPath, buffer);
+      const filePath = path.join(this.fileStoragePath, 'compositions', `${compositionId}.zip`);
+      await fs.ensureDir(path.dirname(filePath));
+      await fs.writeFile(filePath, buffer);
       
-      console.log(`✅ PDF stored locally: ${compositionId}`);
-      return pdfPath;
+      console.log(`✅ File package stored locally: ${compositionId}`);
+      return filePath;
     } catch (error) {
-      console.error('Error storing PDF:', error);
-      throw new Error(`PDF storage failed: ${error.message}`);
+      console.error('Error storing file:', error);
+      throw new Error(`File storage failed: ${error.message}`);
     }
   }
 
-  // Validate if buffer is a PDF
-  isValidPdf(buffer) {
-    // Check PDF magic number
-    const pdfHeader = buffer.slice(0, 4).toString('ascii');
-    return pdfHeader === '%PDF';
+  // Validate if buffer is a ZIP file
+  isValidZip(buffer) {
+    // Check ZIP magic number (PK\x03\x04 or PK\x05\x06)
+    const zipHeader = buffer.slice(0, 4);
+    return zipHeader[0] === 0x50 && zipHeader[1] === 0x4B && 
+           (zipHeader[2] === 0x03 || zipHeader[2] === 0x05) && 
+           (zipHeader[3] === 0x04 || zipHeader[3] === 0x06);
   }
 
-  // Upload PDF to cloud storage (placeholder for future implementation)
+  // Upload file to cloud storage (placeholder for future implementation)
   async uploadToCloudStorage(compositionId, buffer) {
     try {
       // This would integrate with AWS S3, Google Cloud Storage, etc.
-      console.log(`☁️ Uploading PDF to cloud storage: ${compositionId}`);
+      console.log(`☁️ Uploading file package to cloud storage: ${compositionId}`);
       
       // Placeholder implementation
-      const cloudUrl = `https://your-cloud-storage.com/pdfs/${compositionId}.pdf`;
+      const cloudUrl = `https://your-cloud-storage.com/files/${compositionId}.zip`;
       
       return {
         url: cloudUrl,
@@ -165,31 +167,31 @@ class PdfService {
   // Generate temporary download link
   async generateDownloadLink(compositionId, expiresIn = 24 * 60 * 60 * 1000) {
     try {
-      const pdf = await this.getCompositionPdf(compositionId);
-      if (!pdf) {
-        throw new Error('PDF not found');
+      const file = await this.getCompositionFile(compositionId);
+      if (!file) {
+        throw new Error('File package not found');
       }
 
       const downloadId = uuidv4();
-      const tempPath = path.join(this.pdfStoragePath, 'temp', `${downloadId}.pdf`);
+      const tempPath = path.join(this.fileStoragePath, 'temp', `${downloadId}.zip`);
       
       await fs.ensureDir(path.dirname(tempPath));
-      await fs.writeFile(tempPath, pdf.buffer);
+      await fs.writeFile(tempPath, file.buffer);
 
       // Schedule cleanup
       setTimeout(async () => {
         try {
           await fs.remove(tempPath);
-          console.log(`🧹 Cleaned up temporary PDF: ${downloadId}`);
+          console.log(`🧹 Cleaned up temporary file: ${downloadId}`);
         } catch (error) {
-          console.error('Error cleaning up temporary PDF:', error);
+          console.error('Error cleaning up temporary file:', error);
         }
       }, expiresIn);
 
       return {
         downloadUrl: `/api/download/${downloadId}`,
         expiresAt: new Date(Date.now() + expiresIn).toISOString(),
-        size: pdf.size
+        size: file.size
       };
     } catch (error) {
       console.error('Error generating download link:', error);
@@ -197,35 +199,35 @@ class PdfService {
     }
   }
 
-  // Get PDF statistics
-  async getPdfStats() {
+  // Get file statistics
+  async getFileStats() {
     try {
-      const compositionsDir = path.join(this.pdfStoragePath, 'compositions');
+      const compositionsDir = path.join(this.fileStoragePath, 'compositions');
       
       if (!(await fs.pathExists(compositionsDir))) {
-        return { totalPdfs: 0, totalSize: 0, averageSize: 0 };
+        return { totalFiles: 0, totalSize: 0, averageSize: 0 };
       }
 
       const files = await fs.readdir(compositionsDir);
-      const pdfFiles = files.filter(file => file.endsWith('.pdf'));
+      const zipFiles = files.filter(file => file.endsWith('.zip'));
       
       let totalSize = 0;
-      for (const file of pdfFiles) {
+      for (const file of zipFiles) {
         const filePath = path.join(compositionsDir, file);
         const stats = await fs.stat(filePath);
         totalSize += stats.size;
       }
 
       return {
-        totalPdfs: pdfFiles.length,
+        totalFiles: zipFiles.length,
         totalSize: totalSize,
-        averageSize: pdfFiles.length > 0 ? Math.round(totalSize / pdfFiles.length) : 0
+        averageSize: zipFiles.length > 0 ? Math.round(totalSize / zipFiles.length) : 0
       };
     } catch (error) {
-      console.error('Error getting PDF stats:', error);
-      return { totalPdfs: 0, totalSize: 0, averageSize: 0 };
+      console.error('Error getting file stats:', error);
+      return { totalFiles: 0, totalSize: 0, averageSize: 0 };
     }
   }
 }
 
-module.exports = new PdfService(); 
+module.exports = new FileService(); 
