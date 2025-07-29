@@ -1,0 +1,262 @@
+const express = require('express');
+const router = express.Router();
+const notionService = require('../services/notionService');
+
+// Get all compositions from Notion
+router.get('/compositions', async (req, res) => {
+  try {
+    const compositions = await notionService.getCompositions();
+    
+    res.json({
+      success: true,
+      compositions,
+      count: compositions.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching compositions:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get a specific composition by ID
+router.get('/compositions/:compositionId', async (req, res) => {
+  try {
+    const { compositionId } = req.params;
+    
+    const composition = await notionService.getComposition(compositionId);
+    
+    if (!composition) {
+      return res.status(404).json({
+        success: false,
+        error: 'Composition not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      composition
+    });
+
+  } catch (error) {
+    console.error('Error fetching composition:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update composition price in Notion
+router.patch('/compositions/:compositionId/price', async (req, res) => {
+  try {
+    const { compositionId } = req.params;
+    const { price } = req.body;
+
+    if (!price || isNaN(parseFloat(price))) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid price is required'
+      });
+    }
+
+    const updatedComposition = await notionService.updateCompositionPrice(compositionId, price);
+
+    res.json({
+      success: true,
+      message: 'Price updated successfully',
+      composition: updatedComposition
+    });
+
+  } catch (error) {
+    console.error('Error updating composition price:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test Notion connection
+router.get('/test', async (req, res) => {
+  try {
+    const result = await notionService.testConnection();
+    
+    res.json({
+      success: result.success,
+      message: result.message || result.error,
+      databaseName: result.databaseName
+    });
+
+  } catch (error) {
+    console.error('Notion test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get compositions with filtering
+router.get('/compositions/filter', async (req, res) => {
+  try {
+    const { status, category, difficulty, composer } = req.query;
+    
+    let compositions = await notionService.getCompositions();
+    
+    // Apply filters
+    if (status) {
+      compositions = compositions.filter(c => c.status === status);
+    }
+    
+    if (category) {
+      compositions = compositions.filter(c => c.category === category);
+    }
+    
+    if (difficulty) {
+      compositions = compositions.filter(c => c.difficulty === difficulty);
+    }
+    
+    if (composer) {
+      compositions = compositions.filter(c => 
+        c.composer && c.composer.toLowerCase().includes(composer.toLowerCase())
+      );
+    }
+
+    res.json({
+      success: true,
+      compositions,
+      count: compositions.length,
+      filters: { status, category, difficulty, composer }
+    });
+
+  } catch (error) {
+    console.error('Error filtering compositions:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get composition statistics
+router.get('/stats', async (req, res) => {
+  try {
+    const compositions = await notionService.getCompositions();
+    
+    const stats = {
+      total: compositions.length,
+      published: compositions.filter(c => c.status === 'Published').length,
+      draft: compositions.filter(c => c.status === 'Draft').length,
+      categories: {},
+      difficulties: {},
+      composers: {},
+      priceRange: {
+        min: 0,
+        max: 0,
+        average: 0
+      }
+    };
+
+    // Calculate category distribution
+    compositions.forEach(c => {
+      if (c.category) {
+        stats.categories[c.category] = (stats.categories[c.category] || 0) + 1;
+      }
+      if (c.difficulty) {
+        stats.difficulties[c.difficulty] = (stats.difficulties[c.difficulty] || 0) + 1;
+      }
+      if (c.composer) {
+        stats.composers[c.composer] = (stats.composers[c.composer] || 0) + 1;
+      }
+    });
+
+    // Calculate price statistics
+    const prices = compositions.map(c => c.price).filter(p => p > 0);
+    if (prices.length > 0) {
+      stats.priceRange.min = Math.min(...prices);
+      stats.priceRange.max = Math.max(...prices);
+      stats.priceRange.average = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+    }
+
+    res.json({
+      success: true,
+      stats
+    });
+
+  } catch (error) {
+    console.error('Error getting composition stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Search compositions
+router.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required'
+      });
+    }
+
+    const compositions = await notionService.getCompositions();
+    const searchTerm = q.toLowerCase();
+    
+    const results = compositions.filter(c => 
+      c.title.toLowerCase().includes(searchTerm) ||
+      (c.description && c.description.toLowerCase().includes(searchTerm)) ||
+      (c.composer && c.composer.toLowerCase().includes(searchTerm))
+    );
+
+    res.json({
+      success: true,
+      results,
+      count: results.length,
+      query: q
+    });
+
+  } catch (error) {
+    console.error('Error searching compositions:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get unique values for filters
+router.get('/filters', async (req, res) => {
+  try {
+    const compositions = await notionService.getCompositions();
+    
+    const filters = {
+      statuses: [...new Set(compositions.map(c => c.status).filter(Boolean))],
+      categories: [...new Set(compositions.map(c => c.category).filter(Boolean))],
+      difficulties: [...new Set(compositions.map(c => c.difficulty).filter(Boolean))],
+      composers: [...new Set(compositions.map(c => c.composer).filter(Boolean))]
+    };
+
+    res.json({
+      success: true,
+      filters
+    });
+
+  } catch (error) {
+    console.error('Error getting filters:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+module.exports = router; 

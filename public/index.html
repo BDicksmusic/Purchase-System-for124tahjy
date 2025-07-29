@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sheet Music Purchasing System</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .composition-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .composition-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .composition-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .detail-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            color: #333;
+            font-size: 1.1rem;
+            margin-top: 5px;
+        }
+
+        .price {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #28a745;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .purchase-form {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            border: 1px solid #e9ecef;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .stripe-element {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .stripe-element.focused {
+            border-color: #667eea;
+        }
+
+        .stripe-element.invalid {
+            border-color: #dc3545;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .test-controls {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .test-controls h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+
+        .test-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .test-btn:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 Sheet Music Store</h1>
+            <p>Purchase your favorite compositions with secure payment processing</p>
+        </div>
+
+        <div class="content">
+            <!-- Composition Display -->
+            <div class="composition-card">
+                <div class="composition-title">Be Thou My Vision</div>
+                <div class="composition-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Composer</div>
+                        <div class="detail-value">Traditional Irish</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Difficulty</div>
+                        <div class="detail-value">Intermediate</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Category</div>
+                        <div class="detail-value">Hymn</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Pages</div>
+                        <div class="detail-value">3</div>
+                    </div>
+                </div>
+                <div class="price">$9.99</div>
+            </div>
+
+            <!-- Purchase Form -->
+            <div class="purchase-form">
+                <h3>Complete Your Purchase</h3>
+                
+                <div id="error-message" class="error" style="display: none;"></div>
+                <div id="success-message" class="success" style="display: none;"></div>
+                
+                <form id="payment-form">
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address</label>
+                        <input type="email" id="email" class="form-input" placeholder="your@email.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="name">Full Name</label>
+                        <input type="text" id="name" class="form-input" placeholder="John Doe" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Card Information</label>
+                        <div id="card-element" class="stripe-element"></div>
+                        <div id="card-errors" class="error" style="display: none;"></div>
+                    </div>
+
+                    <button type="submit" id="submit-button" class="btn">
+                        <span id="button-text">Pay $9.99</span>
+                        <div id="spinner" class="spinner" style="display: none;"></div>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Test Controls -->
+            <div class="test-controls">
+                <h3>🧪 System Tests</h3>
+                <button class="test-btn" onclick="testEmail()">Test Email</button>
+                <button class="test-btn" onclick="testStripe()">Test Stripe</button>
+                <button class="test-btn" onclick="testNotion()">Test Notion</button>
+                <button class="test-btn" onclick="testWebhook()">Test Webhook</button>
+                <button class="test-btn" onclick="getStats()">Get Stats</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Stripe
+        const stripe = Stripe('pk_test_your_publishable_key_here');
+        const elements = stripe.elements();
+
+        // Create card element
+        const card = elements.create('card', {
+            style: {
+                base: {
+                    fontSize: '16px',
+                    color: '#424770',
+                    '::placeholder': {
+                        color: '#aab7c4',
+                    },
+                },
+                invalid: {
+                    color: '#9e2146',
+                },
+            },
+        });
+
+        card.mount('#card-element');
+
+        // Handle form submission
+        const form = document.getElementById('payment-form');
+        const submitButton = document.getElementById('submit-button');
+        const spinner = document.getElementById('spinner');
+        const buttonText = document.getElementById('button-text');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            setLoading(true);
+            clearMessages();
+
+            try {
+                // Create payment intent
+                const response = await fetch('/api/stripe/create-payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        compositionId: 'be-thou-my-vision',
+                        customerEmail: document.getElementById('email').value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to create payment intent');
+                }
+
+                // Confirm payment
+                const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, {
+                    payment_method: {
+                        card: card,
+                        billing_details: {
+                            name: document.getElementById('name').value,
+                            email: document.getElementById('email').value
+                        }
+                    }
+                });
+
+                if (error) {
+                    throw new Error(error.message);
+                }
+
+                if (paymentIntent.status === 'succeeded') {
+                    showSuccess('Payment successful! Check your email for your sheet music.');
+                } else {
+                    throw new Error('Payment failed');
+                }
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Handle card errors
+        card.addEventListener('change', ({error}) => {
+            const displayError = document.getElementById('card-errors');
+            if (error) {
+                displayError.textContent = error.message;
+                displayError.style.display = 'block';
+            } else {
+                displayError.textContent = '';
+                displayError.style.display = 'none';
+            }
+        });
+
+        // Utility functions
+        function setLoading(isLoading) {
+            if (isLoading) {
+                submitButton.disabled = true;
+                spinner.style.display = 'block';
+                buttonText.style.display = 'none';
+            } else {
+                submitButton.disabled = false;
+                spinner.style.display = 'none';
+                buttonText.style.display = 'block';
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+
+        function clearMessages() {
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        // Test functions
+        async function testEmail() {
+            try {
+                const response = await fetch('/api/email/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        compositionTitle: 'Test Composition'
+                    })
+                });
+                const data = await response.json();
+                alert(data.success ? 'Email test successful!' : `Email test failed: ${data.error}`);
+            } catch (error) {
+                alert(`Email test error: ${error.message}`);
+            }
+        }
+
+        async function testStripe() {
+            try {
+                const response = await fetch('/api/stripe/test');
+                const data = await response.json();
+                alert(data.success ? 'Stripe test successful!' : `Stripe test failed: ${data.error}`);
+            } catch (error) {
+                alert(`Stripe test error: ${error.message}`);
+            }
+        }
+
+        async function testNotion() {
+            try {
+                const response = await fetch('/api/notion/test');
+                const data = await response.json();
+                alert(data.success ? 'Notion test successful!' : `Notion test failed: ${data.error}`);
+            } catch (error) {
+                alert(`Notion test error: ${error.message}`);
+            }
+        }
+
+        async function testWebhook() {
+            try {
+                const response = await fetch('/api/webhooks/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                alert(data.success ? 'Webhook test successful!' : `Webhook test failed: ${data.error}`);
+            } catch (error) {
+                alert(`Webhook test error: ${error.message}`);
+            }
+        }
+
+        async function getStats() {
+            try {
+                const response = await fetch('/api/admin/stats');
+                const data = await response.json();
+                if (data.success) {
+                    const stats = data.stats;
+                    alert(`System Stats:\n- Total Revenue: $${stats.purchases.totalRevenue}\n- Total Purchases: ${stats.purchases.totalPurchases}\n- Unique Customers: ${stats.purchases.uniqueCustomers}`);
+                } else {
+                    alert(`Stats failed: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Stats error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html> 

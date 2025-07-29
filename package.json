@@ -1,0 +1,45 @@
+{
+  "name": "stripe-purchasing-system",
+  "version": "1.0.0",
+  "description": "Automated purchasing system with Stripe integration and email delivery",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "stripe": "^14.0.0",
+    "nodemailer": "^6.9.7",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "multer": "^1.4.5-lts.1",
+    "fs-extra": "^11.1.1",
+    "path": "^0.12.7",
+    "uuid": "^9.0.1",
+    "handlebars": "^4.7.8",
+    "axios": "^1.6.0",
+    "node-cron": "^3.0.3",
+    "csv-parser": "^3.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "keywords": [
+    "stripe",
+    "purchasing",
+    "email",
+    "automation",
+    "music",
+    "compositions"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+} 

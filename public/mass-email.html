@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mass Email Campaign - Notion Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #34495e;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .preview-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .campaign-list {
+            margin-top: 20px;
+        }
+
+        .campaign-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 Mass Email Campaign</h1>
+            <p>Send personalized emails using templates from Notion</p>
+        </div>
+
+        <div id="alerts"></div>
+
+        <!-- Campaign Setup -->
+        <div class="card">
+            <h2>Campaign Setup</h2>
+            
+            <div class="form-group">
+                <label for="templateId">Notion Email Template ID</label>
+                <input type="text" id="templateId" placeholder="Enter the Notion page ID for your email template">
+                <small style="color: #7f8c8d;">Create a page in Notion with properties: Subject, HTML_Content, Text_Content, From_Name, Reply_To</small>
+            </div>
+
+            <div class="form-group">
+                <label for="recipientSource">Recipient Source</label>
+                <select id="recipientSource" onchange="toggleRecipientFields()">
+                    <option value="notion">Notion Database</option>
+                    <option value="csv">CSV File</option>
+                    <option value="test">Test Mode</option>
+                </select>
+            </div>
+
+            <div id="notionRecipients" class="form-group">
+                <label for="recipientDatabaseId">Notion Recipients Database ID</label>
+                <input type="text" id="recipientDatabaseId" placeholder="Enter the Notion database ID containing recipients">
+                <small style="color: #7f8c8d;">Database should have Email and Name properties</small>
+            </div>
+
+            <div id="csvRecipients" class="form-group" style="display: none;">
+                <label for="csvFile">CSV File</label>
+                <input type="file" id="csvFile" accept=".csv">
+                <small style="color: #7f8c8d;">CSV should have columns: email, name (and any custom fields)</small>
+            </div>
+
+            <div id="testRecipients" class="form-group" style="display: none;">
+                <label for="testEmails">Test Email Addresses</label>
+                <textarea id="testEmails" placeholder="Enter test emails, one per line"></textarea>
+            </div>
+
+            <button onclick="previewTemplate()">Preview Template</button>
+            <button onclick="sendCampaign()" id="sendButton">Send Campaign</button>
+
+            <div id="preview" class="preview-container" style="display: none;">
+                <h3>Email Preview</h3>
+                <div id="previewContent"></div>
+            </div>
+        </div>
+
+        <!-- Campaign Statistics -->
+        <div class="card">
+            <h2>Campaign Statistics</h2>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Total Sent</h3>
+                    <div class="value" id="totalSent">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Failed</h3>
+                    <div class="value" id="totalFailed">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Success Rate</h3>
+                    <div class="value" id="successRate">0%</div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 30px;">Recent Campaigns</h3>
+            <div id="campaignList" class="campaign-list"></div>
+        </div>
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Processing campaign...</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle recipient input fields based on source
+        function toggleRecipientFields() {
+            const source = document.getElementById('recipientSource').value;
+            document.getElementById('notionRecipients').style.display = source === 'notion' ? 'block' : 'none';
+            document.getElementById('csvRecipients').style.display = source === 'csv' ? 'block' : 'none';
+            document.getElementById('testRecipients').style.display = source === 'test' ? 'block' : 'none';
+        }
+
+        // Show alert message
+        function showAlert(message, type = 'info') {
+            const alertsDiv = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertsDiv.appendChild(alert);
+            
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Preview email template
+        async function previewTemplate() {
+            const templateId = document.getElementById('templateId').value;
+            
+            if (!templateId) {
+                showAlert('Please enter a template ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/mass-email/preview-template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        templateId,
+                        sampleData: {
+                            name: 'John Doe',
+                            email: 'john@example.com'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const preview = document.getElementById('preview');
+                    const content = document.getElementById('previewContent');
+                    
+                    content.innerHTML = `
+                        <p><strong>From:</strong> ${data.preview.fromName} &lt;${data.preview.replyTo || 'your-email@domain.com'}&gt;</p>
+                        <p><strong>Subject:</strong> ${data.preview.subject}</p>
+                        <hr style="margin: 10px 0;">
+                        <div style="background: white; padding: 20px; border-radius: 5px;">
+                            ${data.preview.html}
+                        </div>
+                    `;
+                    
+                    preview.style.display = 'block';
+                    showAlert('Template preview loaded', 'success');
+                } else {
+                    showAlert(data.error || 'Failed to preview template', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Send email campaign
+        async function sendCampaign() {
+            const templateId = document.getElementById('templateId').value;
+            const source = document.getElementById('recipientSource').value;
+            
+            if (!templateId) {
+                showAlert('Please enter a template ID', 'error');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('sendButton').disabled = true;
+
+            try {
+                let response;
+                
+                if (source === 'csv') {
+                    // Send from CSV
+                    const fileInput = document.getElementById('csvFile');
+                    if (!fileInput.files[0]) {
+                        showAlert('Please select a CSV file', 'error');
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('csvFile', fileInput.files[0]);
+                    formData.append('templateId', templateId);
+
+                    response = await fetch('/api/mass-email/send-from-csv', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    // Send from Notion or test mode
+                    const body = {
+                        templateId,
+                        testMode: source === 'test'
+                    };
+
+                    if (source === 'notion') {
+                        body.recipientDatabaseId = document.getElementById('recipientDatabaseId').value;
+                        if (!body.recipientDatabaseId) {
+                            showAlert('Please enter a recipient database ID', 'error');
+                            return;
+                        }
+                    } else if (source === 'test') {
+                        const testEmails = document.getElementById('testEmails').value
+                            .split('\n')
+                            .map(email => email.trim())
+                            .filter(email => email);
+                        
+                        if (testEmails.length === 0) {
+                            showAlert('Please enter at least one test email', 'error');
+                            return;
+                        }
+                        
+                        body.testEmails = testEmails;
+                    }
+
+                    response = await fetch('/api/mass-email/send-campaign', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Campaign sent! ${data.results.sent.length} successful, ${data.results.failed.length} failed`, 'success');
+                    updateStats(data.results);
+                    loadCampaigns();
+                } else {
+                    showAlert(data.error || 'Failed to send campaign', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('sendButton').disabled = false;
+            }
+        }
+
+        // Update statistics
+        function updateStats(results) {
+            document.getElementById('totalSent').textContent = results.sent.length;
+            document.getElementById('totalFailed').textContent = results.failed.length;
+            const successRate = results.total > 0 
+                ? Math.round((results.sent.length / results.total) * 100) 
+                : 0;
+            document.getElementById('successRate').textContent = successRate + '%';
+        }
+
+        // Load campaign history
+        async function loadCampaigns() {
+            try {
+                const response = await fetch('/api/mass-email/campaigns');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const list = document.getElementById('campaignList');
+                    list.innerHTML = '';
+                    
+                    data.campaigns.forEach(campaign => {
+                        const item = document.createElement('div');
+                        item.className = 'campaign-item';
+                        item.innerHTML = `
+                            <div>
+                                <strong>Campaign ${campaign.id}</strong><br>
+                                <small>${new Date(campaign.timestamp).toLocaleString()}</small>
+                            </div>
+                            <div>
+                                Sent: ${campaign.sent} | Failed: ${campaign.failed} | Total: ${campaign.total}
+                            </div>
+                        `;
+                        list.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading campaigns:', error);
+            }
+        }
+
+        // Load campaigns on page load
+        loadCampaigns();
+    </script>
+</body>
+</html> 
