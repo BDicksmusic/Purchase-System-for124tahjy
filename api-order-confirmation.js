@@ -3,6 +3,7 @@
 
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const notionService = require('./src/services/notionService'); // You'll need to add this
 
 // Add this route to your Express app
 app.get('/api/order-confirmation', async (req, res) => {
@@ -17,7 +18,9 @@ app.get('/api/order-confirmation', async (req, res) => {
         }
 
         // Retrieve the checkout session from Stripe
-        const session = await stripe.checkout.sessions.retrieve(session_id);
+        const session = await stripe.checkout.sessions.retrieve(session_id, {
+            expand: ['line_items', 'customer']
+        });
         
         if (!session) {
             return res.status(404).json({ 
@@ -26,15 +29,43 @@ app.get('/api/order-confirmation', async (req, res) => {
             });
         }
 
+        // Extract metadata
+        const { slug, Slug } = session.metadata || {};
+        const finalSlug = slug || Slug;
+        
+        let composition = null;
+        let downloadUrl = null;
+        
+        // If we have a slug, look up the composition from Notion
+        if (finalSlug) {
+            try {
+                console.log(`🔍 Looking up composition by slug: ${finalSlug}`);
+                composition = await notionService.getCompositionBySlug(finalSlug);
+                
+                if (composition) {
+                    downloadUrl = composition.pdfUrl; // This is the "Website Download File" URL
+                    console.log(`✅ Found composition: ${composition.title} with download URL`);
+                } else {
+                    console.log(`⚠️ No composition found for slug: ${finalSlug}`);
+                }
+            } catch (error) {
+                console.log(`❌ Error looking up composition by slug: ${error.message}`);
+            }
+        }
+
         // Extract order details from session metadata
         const orderData = {
             orderId: session.id,
-            compositionTitle: session.metadata?.compositionTitle || 'Your purchase',
+            compositionTitle: composition?.title || session.metadata?.compositionTitle || session.line_items?.data?.[0]?.description || 'Your purchase',
             amount: (session.amount_total / 100).toFixed(2), // Convert from cents
             purchaseDate: new Date(session.created * 1000).toISOString(),
-            customerEmail: session.customer_details?.email || 'your email',
-            downloadUrl: session.metadata?.downloadUrl || null
+            customerEmail: session.customer_details?.email || session.customer?.email || 'your email',
+            downloadUrl: downloadUrl, // This is the Notion file URL
+            paymentStatus: session.payment_status,
+            slug: finalSlug
         };
+
+        console.log(`✅ Order details prepared:`, orderData);
 
         res.json({
             success: true,
