@@ -366,6 +366,143 @@ class EmailService {
     }
   }
 
+  // Send payment failure notification email
+  async sendPaymentFailureNotification(purchaseData) {
+    try {
+      const {
+        customerEmail,
+        customerName,
+        compositionTitle,
+        orderId,
+        failureReason,
+        price
+      } = purchaseData;
+
+      const emailContent = this.generatePaymentFailureEmail({
+        customerName: customerName || 'Valued Customer',
+        compositionTitle,
+        orderId,
+        failureReason: failureReason || 'Payment processing failed',
+        price: `$${price.toFixed(2)}`,
+        supportEmail: process.env.EMAIL_FROM,
+        retryLink: `${process.env.WEBSITE_URL || 'https://bdicksmusic.com'}/purchase/${orderId}`
+      });
+
+      // Use Mailgun API for sending
+      const axios = require('axios');
+      const formData = new URLSearchParams();
+      formData.append('from', `${process.env.EMAIL_FROM_NAME || 'BDicksmusic'} <${process.env.EMAIL_FROM}>`);
+      formData.append('to', customerEmail);
+      formData.append('subject', `Payment Failed - ${compositionTitle}`);
+      formData.append('html', emailContent.html);
+      formData.append('text', emailContent.text);
+
+      const response = await axios.post(
+        `https://api.mailgun.net/v3/${process.env.MAILGUN_DOMAIN}/messages`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Basic ${Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString('base64')}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      console.log(`❌ Payment failure notification sent to ${customerEmail} for ${compositionTitle}`);
+      
+      return {
+        success: true,
+        messageId: response.data.id
+      };
+
+    } catch (error) {
+      console.error('Error sending payment failure notification:', error);
+      throw new Error(`Payment failure email sending failed: ${error.message}`);
+    }
+  }
+
+  // Generate payment failure email content
+  generatePaymentFailureEmail(data) {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Payment Failed</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #dc3545; padding: 20px; text-align: center; color: white; }
+          .content { padding: 20px; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; }
+          .button { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; }
+          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>❌ Payment Failed</h1>
+            <p>We couldn't process your payment</p>
+          </div>
+          <div class="content">
+            <p>Dear ${data.customerName},</p>
+            <p>We're sorry, but we couldn't process your payment for <strong>${data.compositionTitle}</strong>.</p>
+            
+            <div class="warning">
+              <h3>What happened?</h3>
+              <p><strong>Error:</strong> ${data.failureReason}</p>
+              <p><strong>Order ID:</strong> ${data.orderId}</p>
+              <p><strong>Amount:</strong> ${data.price}</p>
+            </div>
+            
+            <h3>What you can do:</h3>
+            <ul>
+              <li><strong>Try again:</strong> Click the button below to retry your purchase</li>
+              <li><strong>Check your payment method:</strong> Ensure your card has sufficient funds</li>
+              <li><strong>Contact support:</strong> If the problem persists, we're here to help</li>
+            </ul>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${data.retryLink}" class="button">Try Payment Again</a>
+            </div>
+            
+            <p><strong>Need help?</strong> Contact us at <a href="mailto:${data.supportEmail}">${data.supportEmail}</a></p>
+          </div>
+          <div class="footer">
+            <p>© 2025 BDicks Music. All rights reserved.</p>
+            <p>This email was sent because a payment attempt failed for your order.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+Payment Failed - ${data.compositionTitle}
+
+Dear ${data.customerName},
+
+We're sorry, but we couldn't process your payment for ${data.compositionTitle}.
+
+What happened?
+- Error: ${data.failureReason}
+- Order ID: ${data.orderId}
+- Amount: ${data.price}
+
+What you can do:
+1. Try again: Visit ${data.retryLink}
+2. Check your payment method: Ensure your card has sufficient funds
+3. Contact support: Email ${data.supportEmail}
+
+Need help? Contact us at ${data.supportEmail}
+
+© 2025 BDicks Music. All rights reserved.
+    `;
+
+    return { html, text };
+  }
+
   // Generate email content from template
   generateEmailContent(templateName, data) {
     const template = this.templates[templateName];

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const stripeService = require('../services/stripeService');
 const notionService = require('../services/notionService');
+const stripe = require('stripe'); // Added for order confirmation endpoint
+const purchaseService = require('../services/purchaseService'); // Added for order confirmation endpoint
 
 // Create payment intent for a composition
 router.post('/create-payment-intent', async (req, res) => {
@@ -232,6 +234,64 @@ router.get('/test', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// Order confirmation endpoint for dynamic confirmation page
+router.get('/order-confirmation', async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    
+    if (!session_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+
+    // Retrieve the checkout session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    // Get order details from your database
+    const purchase = await purchaseService.getPurchaseBySessionId(session_id);
+    
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+
+    // Generate download URL
+    const downloadUrl = await purchaseService.generateDownloadUrl(purchase.orderId);
+
+    const orderData = {
+      orderId: purchase.orderId,
+      compositionTitle: purchase.compositionTitle,
+      amount: purchase.amount,
+      purchaseDate: purchase.purchaseDate,
+      customerEmail: purchase.customerEmail,
+      downloadUrl: downloadUrl
+    };
+
+    res.json({
+      success: true,
+      order: orderData
+    });
+
+  } catch (error) {
+    console.error('Error retrieving order confirmation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve order details'
     });
   }
 });

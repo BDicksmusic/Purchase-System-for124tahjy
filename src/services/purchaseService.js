@@ -173,6 +173,38 @@ class PurchaseService {
     }
   }
 
+  // Get purchase by session ID
+  async getPurchaseBySessionId(sessionId) {
+    try {
+      const purchases = await this.loadPurchases();
+      return purchases.find(p => p.paymentIntentId === sessionId || p.orderId === sessionId);
+    } catch (error) {
+      console.error('Error getting purchase by session ID:', error);
+      throw new Error(`Purchase retrieval failed: ${error.message}`);
+    }
+  }
+
+  // Generate download URL for confirmation page
+  async generateDownloadUrl(orderId) {
+    try {
+      const purchase = await this.getPurchase(orderId);
+      if (!purchase) {
+        return null;
+      }
+
+      const pdfPath = await this.getCompositionPdfPath(purchase.compositionId);
+      if (!pdfPath) {
+        return null;
+      }
+
+      // Return a secure download URL
+      return `/api/download/${orderId}`;
+    } catch (error) {
+      console.error('Error generating download URL:', error);
+      return null;
+    }
+  }
+
   // Get purchase statistics
   async getPurchaseStats() {
     try {

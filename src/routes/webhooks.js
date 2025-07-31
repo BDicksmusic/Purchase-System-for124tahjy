@@ -62,12 +62,24 @@ async function handlePaymentSuccess(paymentIntent) {
   try {
     console.log(`💰 Payment succeeded: ${paymentIntent.id}`);
     
+    // Additional verification - ensure payment is actually successful
+    if (paymentIntent.status !== 'succeeded') {
+      console.log(`⚠️ Payment intent status is ${paymentIntent.status}, not 'succeeded'`);
+      return;
+    }
+
     const {
       compositionId,
       compositionTitle,
       customerEmail,
       orderId
     } = paymentIntent.metadata;
+
+    // Verify required metadata exists
+    if (!compositionId || !compositionTitle || !customerEmail) {
+      console.log('❌ Missing required metadata for payment success');
+      return;
+    }
 
     // Create purchase record
     const purchaseData = {
@@ -123,6 +135,7 @@ async function handlePaymentFailure(paymentIntent) {
       orderId,
       paymentIntentId: paymentIntent.id,
       customerEmail,
+      customerName: paymentIntent.receipt_email || customerEmail,
       compositionId,
       compositionTitle,
       amount: paymentIntent.amount / 100,
@@ -131,9 +144,22 @@ async function handlePaymentFailure(paymentIntent) {
       purchaseDate: new Date().toISOString()
     };
 
+    // Save failed purchase record
     await purchaseService.createPurchase(purchaseData);
 
-    console.log(`❌ Payment failure recorded for ${compositionTitle}`);
+    // Send payment failure notification to customer
+    if (customerEmail) {
+      await emailService.sendPaymentFailureNotification(purchaseData);
+    }
+
+    // Send admin notification about failed payment
+    await emailService.sendAdminNotification({
+      ...purchaseData,
+      subject: `Payment Failed - ${compositionTitle}`,
+      message: `Payment failed for ${compositionTitle}. Customer: ${customerEmail}. Error: ${purchaseData.failureReason}`
+    });
+
+    console.log(`❌ Payment failure processed for ${compositionTitle} - customer notified`);
     
   } catch (error) {
     console.error('Error handling payment failure:', error);
