@@ -33,18 +33,20 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Body parsing middleware
+// Webhook routes (must come before body parsers to preserve raw body)
+app.use('/api/webhooks', webhookRoutes);
+
+// Body parsing middleware (after webhook routes)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files
 app.use('/static', express.static(path.join(__dirname, '../public')));
 
-// API Routes
+// API Routes (after body parsers)
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/notion', notionRoutes);
-app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/mass-email', require('./routes/massEmail'));
 
