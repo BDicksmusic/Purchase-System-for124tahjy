@@ -4,6 +4,7 @@ const stripeService = require('../services/stripeService');
 const emailService = require('../services/emailService');
 const purchaseService = require('../services/purchaseService');
 const notionService = require('../services/notionService');
+const notionOrdersService = require('../services/notionOrdersService');
 
 // Stripe webhook endpoint
 router.post('/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -171,6 +172,18 @@ async function handlePaymentSuccess(paymentIntent) {
     // Send admin notification
     await emailService.sendAdminNotification(purchaseData);
 
+    // Log order to Notion
+    const orderLogResult = await notionOrdersService.createOrder({
+      ...purchaseData,
+      slug: finalSlug
+    });
+    
+    if (orderLogResult.success) {
+      console.log(`📝 Order logged to Notion: ${orderLogResult.notionPageId}`);
+    } else {
+      console.log(`⚠️ Failed to log order to Notion: ${orderLogResult.error}`);
+    }
+
     console.log(`✅ Purchase processed successfully for ${finalCompositionTitle}`);
     
   } catch (error) {
@@ -332,6 +345,18 @@ async function handleCheckoutSessionCompleted(session) {
       });
 
       await emailService.sendAdminNotification(purchaseData);
+      
+      // Log order to Notion
+      const orderLogResult = await notionOrdersService.createOrder({
+        ...purchaseData,
+        slug: finalSlug
+      });
+      
+      if (orderLogResult.success) {
+        console.log(`📝 Order logged to Notion: ${orderLogResult.notionPageId}`);
+      } else {
+        console.log(`⚠️ Failed to log order to Notion: ${orderLogResult.error}`);
+      }
       
       console.log(`✅ Confirmation email sent to ${customerEmail}`);
     } else {

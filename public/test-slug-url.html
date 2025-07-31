@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Slug URL Approach</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-card">
+        <h1>🧪 Test Slug URL Approach</h1>
+        <p>This tests the new approach where the slug is passed in the URL.</p>
+        
+        <h3>Test URLs:</h3>
+        <button onclick="testWithSlug()">Test with Slug</button>
+        <button onclick="testWithoutSlug()">Test without Slug</button>
+        <button onclick="testCompositionAPI()">Test Composition API</button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        async function testWithSlug() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing with slug...';
+            
+            // Simulate the URL with both session_id and slug
+            const testUrl = '/confirmation.html?session_id=cs_live_test123&slug=coming-home';
+            
+            resultDiv.textContent = `Testing URL: ${testUrl}\n\nOpening confirmation page...`;
+            
+            // Open the confirmation page in a new tab
+            window.open(testUrl, '_blank');
+        }
+        
+        async function testWithoutSlug() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing without slug...';
+            
+            // Simulate the URL with only session_id
+            const testUrl = '/confirmation.html?session_id=cs_live_test123';
+            
+            resultDiv.textContent = `Testing URL: ${testUrl}\n\nOpening confirmation page...`;
+            
+            // Open the confirmation page in a new tab
+            window.open(testUrl, '_blank');
+        }
+        
+        async function testCompositionAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing composition API...';
+            
+            try {
+                const response = await fetch('/api/composition/coming-home');
+                const data = await response.json();
+                
+                resultDiv.textContent = `API Response:\n${JSON.stringify(data, null, 2)}`;
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+</html> 

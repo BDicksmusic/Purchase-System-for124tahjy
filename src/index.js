@@ -10,6 +10,7 @@ const emailRoutes = require('./routes/email');
 const notionRoutes = require('./routes/notion');
 const webhookRoutes = require('./routes/webhooks');
 const adminRoutes = require('./routes/admin');
+const apiRoutes = require('./routes/api');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,6 +50,7 @@ app.use('/api/email', emailRoutes);
 app.use('/api/notion', notionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/mass-email', require('./routes/massEmail'));
+app.use('/api', apiRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

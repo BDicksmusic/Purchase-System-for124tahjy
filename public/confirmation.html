@@ -3,189 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thank You for Your Purchase - BDicks Music</title>
+    <title>Purchase Confirmation - BDicks Music</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
+            margin: 0;
+            padding: 0;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-
-        .confirmation-card {
+        
+        .confirmation-container {
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-            margin-bottom: 30px;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .confirmation-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            color: white;
+            font-size: 40px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 300;
             text-align: center;
         }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            font-weight: 300;
-        }
-
-        .header p {
+        
+        .subtitle {
+            color: #7f8c8d;
             font-size: 1.2em;
-            opacity: 0.9;
+            margin-bottom: 40px;
+            text-align: center;
         }
-
-        .content {
-            padding: 40px;
-        }
-
+        
         .order-details {
             background: #f8f9fa;
             border-radius: 15px;
             padding: 30px;
-            margin-bottom: 30px;
+            margin: 30px 0;
+            text-align: left;
         }
-
+        
         .order-details h2 {
-            color: #667eea;
-            margin-bottom: 20px;
+            color: #495057;
+            margin-bottom: 25px;
             font-size: 1.5em;
+            font-weight: 600;
+            text-align: left;
         }
-
+        
         .detail-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 15px 0;
             border-bottom: 1px solid #e9ecef;
+            text-align: left;
         }
-
+        
         .detail-row:last-child {
             border-bottom: none;
         }
-
+        
         .detail-label {
             font-weight: 600;
             color: #495057;
+            flex: 0 0 40%;
         }
-
+        
         .detail-value {
-            color: #667eea;
+            color: #6c757d;
             font-weight: 500;
+            flex: 0 0 60%;
+            text-align: right;
         }
-
+        
         .download-section {
-            background: #e8f5e8;
-            border: 2px solid #28a745;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
             border-radius: 15px;
             padding: 30px;
-            text-align: center;
-            margin-bottom: 30px;
+            margin: 30px 0;
+            text-align: left;
         }
-
+        
         .download-section h3 {
-            color: #28a745;
             margin-bottom: 15px;
-            font-size: 1.3em;
-        }
-
-        .download-button {
-            display: inline-block;
-            background: #28a745;
-            color: white;
-            padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 50px;
+            font-size: 1.4em;
             font-weight: 600;
-            font-size: 1.1em;
-            transition: all 0.3s ease;
-            margin: 10px;
+            text-align: left;
         }
-
-        .download-button:hover {
-            background: #218838;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        
+        .download-section p {
+            margin-bottom: 20px;
+            opacity: 0.9;
+            text-align: left;
         }
-
-        .email-notice {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-
-        .email-notice h4 {
-            color: #856404;
-            margin-bottom: 10px;
-        }
-
-        .actions {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .action-button {
-            display: inline-block;
-            padding: 12px 25px;
-            text-decoration: none;
-            border-radius: 25px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .primary:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-
-        .secondary {
-            background: transparent;
+        
+        .download-button {
+            background: white;
             color: #667eea;
-            border: 2px solid #667eea;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-
-        .secondary:hover {
-            background: #667eea;
-            color: white;
+        
+        .download-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
-
-        .footer {
-            text-align: center;
-            color: white;
-            opacity: 0.8;
-            margin-top: 40px;
-        }
-
+        
         .loading {
             text-align: center;
             padding: 40px;
+            color: #6c757d;
         }
-
+        
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
@@ -195,122 +165,191 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
-
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            color: #6c757d;
+            font-size: 0.9em;
+            text-align: left;
+        }
+        
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Responsive design */
         @media (max-width: 768px) {
-            .container {
-                padding: 20px 10px;
-            }
-            
-            .header {
+            .confirmation-container {
                 padding: 30px 20px;
+                width: 95%;
             }
             
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .content {
-                padding: 30px 20px;
-            }
-            
-            .actions {
+            .detail-row {
                 flex-direction: column;
-                align-items: center;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .detail-label {
+                flex: none;
+                font-size: 0.9em;
+            }
+            
+            .detail-value {
+                flex: none;
+                text-align: left;
+                font-size: 0.9em;
+            }
+            
+            h1 {
+                font-size: 2em;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="confirmation-card">
-            <div class="header">
-                <h1>🎵 Thank You!</h1>
-                <p>Your purchase has been confirmed</p>
+    <div class="confirmation-container">
+        <div class="success-icon">✓</div>
+        <h1>Thank You!</h1>
+        <p class="subtitle">Your purchase has been confirmed</p>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading your order details...</p>
+        </div>
+        
+        <div id="order-details" style="display: none;">
+            <div class="order-details">
+                <h2>📋 Order Details</h2>
+                <div class="detail-row">
+                    <span class="detail-label">Order ID:</span>
+                    <span class="detail-value" id="order-id">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Composition:</span>
+                    <span class="detail-value" id="composition-title">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Amount:</span>
+                    <span class="detail-value" id="amount">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Purchase Date:</span>
+                    <span class="detail-value" id="purchase-date">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status:</span>
+                    <span class="detail-value" id="status">-</span>
+                </div>
             </div>
             
-            <div class="content">
-                <!-- Loading state while fetching order details -->
-                <div id="loading" class="loading">
-                    <div class="spinner"></div>
-                    <p>Loading your order details...</p>
-                </div>
-
-                <!-- Order details will be populated here -->
-                <div id="order-details" style="display: none;">
-                    <div class="order-details">
-                        <h2>📋 Order Summary</h2>
-                        <div class="detail-row">
-                            <span class="detail-label">Order ID:</span>
-                            <span class="detail-value" id="order-id">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Composition:</span>
-                            <span class="detail-value" id="composition-title">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Amount:</span>
-                            <span class="detail-value" id="amount">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Date:</span>
-                            <span class="detail-value" id="purchase-date">-</span>
-                        </div>
-                    </div>
-
-                    <div class="download-section">
-                        <h3>📥 Download Your Music</h3>
-                        <p>Your sheet music is ready for download. You'll also receive an email with the download link.</p>
-                        <a href="#" id="download-link" class="download-button" target="_blank">
-                            📄 Download PDF
-                        </a>
-                    </div>
-
-                    <div class="email-notice">
-                        <h4>📧 Email Confirmation</h4>
-                        <p>We've sent a confirmation email to <strong id="customer-email">-</strong> with your download link and order details.</p>
-                    </div>
-
-                    <div class="actions">
-                        <a href="/" class="action-button secondary">🏠 Back to Home</a>
-                        <a href="/compositions" class="action-button primary">🎼 Browse More Music</a>
-                    </div>
-                </div>
+            <div class="download-section">
+                <h3>🎵 Your Music is Ready!</h3>
+                <p>Click the button below to download your composition.</p>
+                <a href="#" id="download-link" class="download-button" target="_blank">
+                    📥 Download Your Sheet Music
+                </a>
             </div>
         </div>
         
+        <div id="error" class="error-message" style="display: none;">
+            <h3>⚠️ Unable to Load Order Details</h3>
+            <p>We're having trouble loading your order details. Please check your email for confirmation, or contact support if you have any questions.</p>
+        </div>
+        
         <div class="footer">
-            <p>© 2025 BDicks Music. All rights reserved.</p>
+            <p>Questions? Contact us at <a href="mailto:bdicksmusic@gmail.com">bdicksmusic@gmail.com</a></p>
+            <p>Thank you for supporting independent music! 🎵</p>
         </div>
     </div>
 
     <script>
-        // Get the checkout session ID from URL parameters
+        // Get the checkout session ID and slug from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const sessionId = urlParams.get('session_id');
+        const slug = urlParams.get('slug');
         
-        if (sessionId) {
-            // Fetch order details from your backend
+        console.log('URL Parameters:', { sessionId, slug });
+        
+        if (sessionId && slug) {
+            // Use slug to look up composition details immediately
+            fetchOrderDetailsBySlug(sessionId, slug);
+        } else if (sessionId) {
+            // Fallback to external API if no slug
             fetchOrderDetails(sessionId);
         } else {
-            // Show generic confirmation if no session ID
-            showGenericConfirmation();
+            showError('No session ID or slug provided');
+        }
+
+        async function fetchOrderDetailsBySlug(sessionId, slug) {
+            try {
+                console.log(`🔍 Fetching composition by slug: "${slug}"`);
+                
+                // First, get composition details from our local API
+                const compositionResponse = await fetch(`/api/composition/${slug}`);
+                const compositionData = await compositionResponse.json();
+                
+                if (compositionData.success) {
+                    console.log('✅ Found composition:', compositionData.composition);
+                    
+                    // Create order details from session ID and composition data
+                    const orderDetails = {
+                        orderId: sessionId,
+                        compositionTitle: compositionData.composition.title,
+                        amount: '50.00', // Default amount, could be passed in URL too
+                        purchaseDate: new Date().toISOString(),
+                        customerEmail: 'your email', // Could be passed in URL too
+                        downloadUrl: compositionData.composition.scoreLink,
+                        paymentStatus: 'paid',
+                        slug: slug
+                    };
+                    
+                    populateOrderDetails(orderDetails);
+                } else {
+                    throw new Error('Composition not found');
+                }
+                
+            } catch (error) {
+                console.error('Error fetching composition by slug:', error);
+                // Fallback to generic confirmation
+                showGenericConfirmation();
+            }
         }
 
         async function fetchOrderDetails(sessionId) {
             try {
+                console.log(`🔍 Fetching order details for session: ${sessionId}`);
+                
+                // Try to fetch from external API
                 const response = await fetch(`/api/order-confirmation?session_id=${sessionId}`);
                 const data = await response.json();
                 
-                if (data.success) {
+                if (data.success && data.order) {
+                    console.log('✅ Order details fetched:', data.order);
                     populateOrderDetails(data.order);
                 } else {
-                    showGenericConfirmation();
+                    throw new Error('Failed to fetch order details');
                 }
+                
             } catch (error) {
                 console.error('Error fetching order details:', error);
                 showGenericConfirmation();
@@ -322,35 +361,41 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('order-details').style.display = 'block';
             
-            // Populate order information
-            document.getElementById('order-id').textContent = order.orderId;
-            document.getElementById('composition-title').textContent = order.compositionTitle;
-            document.getElementById('amount').textContent = `$${order.amount}`;
-            document.getElementById('purchase-date').textContent = new Date(order.purchaseDate).toLocaleDateString();
-            document.getElementById('customer-email').textContent = order.customerEmail;
+            // Populate the details
+            document.getElementById('order-id').textContent = order.orderId || 'N/A';
+            document.getElementById('composition-title').textContent = order.compositionTitle || 'Unknown Composition';
+            document.getElementById('amount').textContent = order.amount ? `$${order.amount}` : 'N/A';
+            document.getElementById('purchase-date').textContent = order.purchaseDate ? new Date(order.purchaseDate).toLocaleDateString() : 'N/A';
+            document.getElementById('status').textContent = order.paymentStatus || 'Completed';
             
-            // Set download link
-            const downloadLink = document.getElementById('download-link');
+            // Set up download link
             if (order.downloadUrl) {
+                const downloadLink = document.getElementById('download-link');
                 downloadLink.href = order.downloadUrl;
-            } else {
-                downloadLink.style.display = 'none';
+                downloadLink.textContent = `📥 Download ${order.compositionTitle}`;
             }
         }
 
         function showGenericConfirmation() {
+            // Hide loading, show generic confirmation
             document.getElementById('loading').style.display = 'none';
             document.getElementById('order-details').style.display = 'block';
             
-            // Show generic message
-            document.getElementById('order-id').textContent = 'Processing...';
-            document.getElementById('composition-title').textContent = 'Your purchase';
-            document.getElementById('amount').textContent = 'Confirmed';
+            // Set generic values
+            document.getElementById('order-id').textContent = sessionId || 'N/A';
+            document.getElementById('composition-title').textContent = 'Your Composition';
+            document.getElementById('amount').textContent = 'N/A';
             document.getElementById('purchase-date').textContent = new Date().toLocaleDateString();
-            document.getElementById('customer-email').textContent = 'your email';
+            document.getElementById('status').textContent = 'Completed';
             
             // Hide download section for generic confirmation
             document.querySelector('.download-section').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            console.error('Error:', message);
         }
     </script>
 </body>
