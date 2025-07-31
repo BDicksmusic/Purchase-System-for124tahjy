@@ -170,6 +170,7 @@ async function handlePaymentSuccess(paymentIntent) {
     await emailService.sendPurchaseConfirmation({
       ...purchaseData,
       pdfUrl, // Pass the Notion file URL
+      slug: finalSlug, // Pass the slug for the API endpoint
       price: purchaseData.amount
     });
 

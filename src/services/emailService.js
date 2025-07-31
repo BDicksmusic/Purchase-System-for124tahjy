@@ -283,8 +283,10 @@ class EmailService {
         attachments: []
       };
 
-      // Only try to get file package if we don't have a PDF URL
-      if (compositionId && !purchaseData.pdfUrl) {
+      // Use our new API endpoint for file downloads
+      if (purchaseData.pdfUrl && purchaseData.slug) {
+        console.log(`📎 Using API endpoint for download: ${compositionTitle} (slug: ${purchaseData.slug})`);
+      } else if (compositionId && !purchaseData.pdfUrl) {
         try {
           const file = await fileService.getCompositionFile(compositionId);
           if (file && file.buffer) {
@@ -295,13 +297,13 @@ class EmailService {
             });
             console.log(`📎 File package attached to email: ${compositionTitle} (${file.size} bytes)`);
           } else {
-            console.log(`📎 No file package found for composition: ${compositionId} (using PDF URL instead)`);
+            console.log(`📎 No file package found for composition: ${compositionId} (using fallback URL)`);
           }
         } catch (error) {
           console.error('Error getting file package for email:', error);
         }
-      } else if (purchaseData.pdfUrl) {
-        console.log(`📎 Using PDF URL for download: ${compositionTitle}`);
+      } else {
+        console.log(`📎 Using fallback download URL for: ${compositionTitle}`);
       }
 
       // Send email using Mailgun API if configured, otherwise use SMTP
