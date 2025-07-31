@@ -152,20 +152,24 @@ async function handlePaymentSuccess(paymentIntent) {
     // Save purchase record
     await purchaseService.createPurchase(purchaseData);
 
-    // Try to get PDF path if compositionId is available, otherwise skip
-    let pdfPath = null;
+    // Get PDF URL from Notion composition if available
+    let pdfUrl = null;
     if (finalCompositionId && finalCompositionId !== `product_${Date.now()}`) {
       try {
-        pdfPath = await purchaseService.getCompositionPdfPath(finalCompositionId);
+        // Get the composition from Notion to get the PDF URL
+        if (composition && composition.pdfUrl) {
+          pdfUrl = composition.pdfUrl; // This is the "Website Download File" URL from Notion
+          console.log(`✅ Got PDF URL from Notion: ${pdfUrl}`);
+        }
       } catch (error) {
-        console.log(`⚠️ Could not get PDF path for compositionId ${finalCompositionId}:`, error.message);
+        console.log(`⚠️ Could not get PDF URL from Notion:`, error.message);
       }
     }
 
     // Send confirmation email with PDF
     await emailService.sendPurchaseConfirmation({
       ...purchaseData,
-      pdfPath,
+      pdfUrl, // Pass the Notion file URL
       price: purchaseData.amount
     });
 
@@ -328,19 +332,24 @@ async function handleCheckoutSessionCompleted(session) {
 
       await purchaseService.createPurchase(purchaseData);
 
-      // Try to get PDF path if compositionId is available, otherwise skip
-      let pdfPath = null;
+      // Get PDF URL from Notion composition if available
+      let pdfUrl = null;
       if (finalCompositionId && finalCompositionId !== `product_${Date.now()}`) {
         try {
-          pdfPath = await purchaseService.getCompositionPdfPath(finalCompositionId);
+          // Get the composition from Notion to get the PDF URL
+          const composition = await notionService.getCompositionBySlug(finalSlug);
+          if (composition && composition.pdfUrl) {
+            pdfUrl = composition.pdfUrl; // This is the "Website Download File" URL from Notion
+            console.log(`✅ Got PDF URL from Notion: ${pdfUrl}`);
+          }
         } catch (error) {
-          console.log(`⚠️ Could not get PDF path for compositionId ${finalCompositionId}:`, error.message);
+          console.log(`⚠️ Could not get PDF URL from Notion:`, error.message);
         }
       }
 
       await emailService.sendPurchaseConfirmation({
         ...purchaseData,
-        pdfPath,
+        pdfUrl, // Pass the Notion file URL
         price: purchaseData.amount
       });
 
@@ -452,20 +461,24 @@ async function handleChargeSucceeded(charge) {
     // Save purchase record
     await purchaseService.createPurchase(purchaseData);
 
-    // Try to get PDF path if compositionId is available, otherwise skip
-    let pdfPath = null;
+    // Get PDF URL from Notion composition if available
+    let pdfUrl = null;
     if (finalCompositionId && finalCompositionId !== `product_${Date.now()}`) {
       try {
-        pdfPath = await purchaseService.getCompositionPdfPath(finalCompositionId);
+        // Get the composition from Notion to get the PDF URL
+        if (composition && composition.pdfUrl) {
+          pdfUrl = composition.pdfUrl; // This is the "Website Download File" URL from Notion
+          console.log(`✅ Got PDF URL from Notion: ${pdfUrl}`);
+        }
       } catch (error) {
-        console.log(`⚠️ Could not get PDF path for compositionId ${finalCompositionId}:`, error.message);
+        console.log(`⚠️ Could not get PDF URL from Notion:`, error.message);
       }
     }
 
     // Send confirmation email with PDF
     await emailService.sendPurchaseConfirmation({
       ...purchaseData,
-      pdfPath,
+      pdfUrl, // Pass the Notion file URL
       price: purchaseData.amount
     });
 
