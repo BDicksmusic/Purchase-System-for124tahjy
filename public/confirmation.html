@@ -373,6 +373,13 @@
                 const downloadLink = document.getElementById('download-link');
                 downloadLink.href = order.downloadUrl;
                 downloadLink.textContent = `📥 Download ${order.compositionTitle}`;
+            } else if (order.scoreLink) {
+                const downloadLink = document.getElementById('download-link');
+                downloadLink.href = order.scoreLink;
+                downloadLink.textContent = `📥 Download ${order.compositionTitle}`;
+            } else {
+                // Hide download button if no link available
+                document.querySelector('.download-section').style.display = 'none';
             }
         }
 

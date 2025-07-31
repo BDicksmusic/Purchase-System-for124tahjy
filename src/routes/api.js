@@ -19,7 +19,7 @@ router.get('/composition/:slug', async (req, res) => {
           id: composition.id,
           title: composition.title,
           slug: composition.slug,
-          scoreLink: composition.scoreLink || composition.pdfUrl,
+          scoreLink: composition.pdfUrl,
           description: composition.description,
           price: composition.price
         }
@@ -88,7 +88,7 @@ router.get('/order-confirmation', async (req, res) => {
       amount: (session.amount_total / 100).toFixed(2),
       purchaseDate: new Date(session.created * 1000).toISOString(),
       customerEmail: session.customer_details?.email || session.customer?.email,
-      downloadUrl: composition?.scoreLink || composition?.pdfUrl,
+      downloadUrl: composition?.pdfUrl,
       paymentStatus: session.payment_status,
       slug: finalSlug
     };
