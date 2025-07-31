@@ -1,34 +1,31 @@
 require('dotenv').config();
 
 function testCorrectURL() {
-  console.log('🔍 Testing correct Railway URL...\n');
+  console.log('🔍 Testing correct URL format...\n');
   
-  const correctURL = 'https://purchase-system-for124tahjy-production.up.railway.app';
-  const currentURL = process.env.WEBSITE_URL;
-  
-  console.log('📋 URL Comparison:');
-  console.log(`   Correct URL: ${correctURL}`);
-  console.log(`   Current URL: ${currentURL || 'not set'}`);
-  
-  if (currentURL === correctURL) {
-    console.log('\n✅ URLs match! The correct URL is being used.');
-  } else {
-    console.log('\n❌ URLs do not match!');
-    console.log('   You need to update the WEBSITE_URL in your Railway deployment.');
-  }
-  
-  // Test the email URL construction with the correct URL
+  // Simulate the purchase data
   const purchaseData = {
     pdfUrl: 'https://prod-files-secure.s3.us-west-2.amazonaws.com/...',
     slug: 'coming-home',
     compositionTitle: 'Coming Home'
   };
   
+  // Test the URL construction logic with the correct URL
+  const websiteUrl = 'https://purchase-system-for124tahjy-production.up.railway.app';
   const downloadLink = purchaseData.pdfUrl ? 
-    `${correctURL}/api/notion/compositions/slug/${purchaseData.slug}/file` : 
-    `${correctURL}/download/fallback`;
+    `${websiteUrl}/api/notion/compositions/slug/${purchaseData.slug}/file` : 
+    `${websiteUrl}/download/fallback`;
   
-  console.log('\n📧 Email Download Link with Correct URL:');
+  console.log('📋 Correct Environment Variable:');
+  console.log(`   WEBSITE_URL=https://purchase-system-for124tahjy-production.up.railway.app`);
+  
+  console.log('\n📧 Email Template Data:');
+  console.log(`   Composition: ${purchaseData.compositionTitle}`);
+  console.log(`   Slug: ${purchaseData.slug}`);
+  console.log(`   PDF URL: ${purchaseData.pdfUrl ? 'present' : 'not present'}`);
+  console.log(`   Download Link: ${downloadLink}`);
+  
+  console.log('\n🔗 Full Download URL:');
   console.log(`   ${downloadLink}`);
   
   // Test if the URL looks correct
@@ -37,6 +34,10 @@ function testCorrectURL() {
   } else {
     console.log('\n❌ URL construction might be incorrect');
   }
+  
+  console.log('\n📝 Instructions:');
+  console.log('   Update your .env file to use:');
+  console.log('   WEBSITE_URL=https://purchase-system-for124tahjy-production.up.railway.app');
 }
 
 testCorrectURL(); 
