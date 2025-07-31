@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - BDicks Music</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .order-details {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        .order-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .order-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 18px;
+            color: #667eea;
+        }
+        .download-section {
+            background-color: #e8f5e8;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+            border: 2px dashed #28a745;
+        }
+        .download-button {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 10px 0;
+            transition: background-color 0.3s;
+        }
+        .download-button:hover {
+            background-color: #218838;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+        .success-icon {
+            color: #28a745;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .social-links {
+            margin: 20px 0;
+        }
+        .social-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 0;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .order-row {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎵 Order Confirmation</h1>
+            <p>Thank you for your purchase!</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Loading State -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <h3>Loading your order details...</h3>
+                <p>Please wait while we retrieve your purchase information.</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error" class="error" style="display: none;">
+                <h3>⚠️ Unable to Load Order Details</h3>
+                <p>We're having trouble retrieving your order information. Don't worry - your payment was successful and you'll receive a confirmation email shortly.</p>
+                <p>If you have any questions, please contact us at <a href="mailto:orders@mail.bdicksmusic.com">orders@mail.bdicksmusic.com</a></p>
+            </div>
+
+            <!-- Success State -->
+            <div id="success" style="display: none;">
+                <div class="success-icon">✅</div>
+                <h2 id="customerName">Hello Valued Customer,</h2>
+                <p>Thank you for purchasing <strong id="compositionTitle">your sheet music</strong>! Your order has been successfully processed and your sheet music is ready for download.</p>
+
+                <!-- Order Details -->
+                <div class="order-details">
+                    <h3>📋 Order Details</h3>
+                    <div class="order-row">
+                        <span>Order ID:</span>
+                        <span id="orderId">Loading...</span>
+                    </div>
+                    <div class="order-row">
+                        <span>Composition:</span>
+                        <span id="compositionTitleDetail">Loading...</span>
+                    </div>
+                    <div class="order-row">
+                        <span>Purchase Date:</span>
+                        <span id="purchaseDate">Loading...</span>
+                    </div>
+                    <div class="order-row">
+                        <span>Total Amount:</span>
+                        <span id="amount">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Download Section -->
+                <div class="download-section">
+                    <h3>📥 Download Your Sheet Music</h3>
+                    <p>Your PDF file is attached to the confirmation email. You can also download it using the link below:</p>
+                    <a id="downloadLink" href="#" class="download-button" target="_blank">Download PDF</a>
+                    <p><small>This download link will expire in 24 hours for security.</small></p>
+                </div>
+
+                <!-- Additional Information -->
+                <h3>📚 What's Next?</h3>
+                <ul>
+                    <li>Print your sheet music or save it to your device</li>
+                    <li>Check out our other compositions in our catalog</li>
+                    <li>Follow us for new releases and updates</li>
+                </ul>
+
+                <p>Happy practicing! 🎹</p>
+                <p><em>Best regards,<br>Brandon Dicks<br>BDicks Music</em></p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="social-links">
+                <a href="https://bdicksmusic.com">Website</a> |
+                <a href="#">YouTube</a> |
+                <a href="#">Instagram</a>
+            </div>
+            <p>© 2024 Brandon Dicks Music. All rights reserved.</p>
+        </div>
+    </div>
+
+    <script>
+        // Get session ID from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+        
+        if (!sessionId) {
+            showError('No session ID provided');
+        } else {
+            loadOrderDetails(sessionId);
+        }
+
+        async function loadOrderDetails(sessionId) {
+            try {
+                console.log('🔍 Loading order details for session:', sessionId);
+                
+                // Replace with your actual API endpoint
+                const response = await fetch(`/api/order-confirmation?session_id=${sessionId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.order) {
+                    displayOrderDetails(data.order);
+                } else {
+                    throw new Error(data.error || 'Failed to load order details');
+                }
+                
+            } catch (error) {
+                console.error('Error loading order details:', error);
+                showError('Failed to load order details. Please check your email for confirmation.');
+            }
+        }
+
+        function displayOrderDetails(order) {
+            console.log('✅ Displaying order details:', order);
+            
+            // Hide loading, show success
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+            
+            // Update order details
+            document.getElementById('customerName').textContent = `Hello ${order.customerName || 'Valued Customer'},`;
+            document.getElementById('compositionTitle').textContent = order.compositionTitle;
+            document.getElementById('compositionTitleDetail').textContent = order.compositionTitle;
+            document.getElementById('orderId').textContent = order.orderId;
+            document.getElementById('amount').textContent = `$${order.amount}`;
+            document.getElementById('purchaseDate').textContent = new Date(order.purchaseDate).toLocaleDateString();
+            
+            // Update download link if PDF URL is available
+            if (order.pdfUrl) {
+                const downloadLink = document.getElementById('downloadLink');
+                downloadLink.href = order.pdfUrl;
+                downloadLink.style.display = 'inline-block';
+                console.log('📎 PDF download link set:', order.pdfUrl.substring(0, 100) + '...');
+            } else {
+                document.getElementById('downloadLink').style.display = 'none';
+                console.log('⚠️ No PDF URL available for download');
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            console.error('❌ Error:', message);
+        }
+    </script>
+</body>
+</html> 

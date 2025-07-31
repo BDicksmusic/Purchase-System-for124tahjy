@@ -266,7 +266,7 @@ class EmailService {
         orderId,
         purchaseDate: purchaseDate || new Date().toLocaleDateString(),
         price: `$${price.toFixed(2)}`,
-        downloadLink: `${process.env.FRONTEND_URL}/download/${orderId}`,
+        downloadLink: purchaseData.pdfUrl || purchaseData.pdfPath || `${process.env.FRONTEND_URL}/download/${orderId}`,
         supportEmail: process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM
       };
 
@@ -283,8 +283,8 @@ class EmailService {
         attachments: []
       };
 
-      // Get file package using the new File service
-      if (compositionId) {
+      // Only try to get file package if we don't have a PDF URL
+      if (compositionId && !purchaseData.pdfUrl) {
         try {
           const file = await fileService.getCompositionFile(compositionId);
           if (file && file.buffer) {
@@ -295,23 +295,55 @@ class EmailService {
             });
             console.log(`📎 File package attached to email: ${compositionTitle} (${file.size} bytes)`);
           } else {
-            console.warn(`⚠️ No file package found for composition: ${compositionId}`);
+            console.log(`📎 No file package found for composition: ${compositionId} (using PDF URL instead)`);
           }
         } catch (error) {
           console.error('Error getting file package for email:', error);
         }
+      } else if (purchaseData.pdfUrl) {
+        console.log(`📎 Using PDF URL for download: ${compositionTitle}`);
       }
 
-      // Send email
-      const result = await this.transporter.sendMail(mailOptions);
-      
-      console.log(`✅ Purchase confirmation email sent to ${customerEmail} for ${compositionTitle}`);
-      
-      return {
-        success: true,
-        messageId: result.messageId,
-        email: customerEmail
-      };
+      // Send email using Mailgun API if configured, otherwise use SMTP
+      if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
+        // Use Mailgun API directly
+        const formData = new URLSearchParams();
+        formData.append('from', `${process.env.EMAIL_FROM_NAME || 'BDicksmusic'} <${process.env.EMAIL_FROM}>`);
+        formData.append('to', customerEmail);
+        formData.append('subject', `Your Sheet Music: ${compositionTitle}`);
+        formData.append('html', emailContent.html);
+        formData.append('text', emailContent.text);
+        
+        const response = await axios.post(
+          `https://api.mailgun.net/v3/${process.env.MAILGUN_DOMAIN}/messages`,
+          formData,
+          {
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString('base64')}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          }
+        );
+        
+        console.log(`✅ Purchase confirmation email sent via Mailgun to ${customerEmail} for ${compositionTitle}`);
+        
+        return {
+          success: true,
+          messageId: response.data.id,
+          email: customerEmail
+        };
+      } else {
+        // Fallback to SMTP
+        const result = await this.transporter.sendMail(mailOptions);
+        
+        console.log(`✅ Purchase confirmation email sent via SMTP to ${customerEmail} for ${compositionTitle}`);
+        
+        return {
+          success: true,
+          messageId: result.messageId,
+          email: customerEmail
+        };
+      }
 
     } catch (error) {
       console.error('Error sending purchase confirmation email:', error);
@@ -350,14 +382,44 @@ class EmailService {
         text: emailContent.text
       };
 
-      const result = await this.transporter.sendMail(mailOptions);
-      
-      console.log(`✅ Admin notification sent for purchase ${orderId}`);
-      
-      return {
-        success: true,
-        messageId: result.messageId
-      };
+      // Send admin notification using Mailgun API if configured, otherwise use SMTP
+      if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
+        // Use Mailgun API directly
+        const formData = new URLSearchParams();
+        formData.append('from', `${process.env.EMAIL_FROM_NAME || 'BDicksmusic'} <${process.env.EMAIL_FROM}>`);
+        formData.append('to', process.env.ADMIN_EMAIL || process.env.EMAIL_FROM);
+        formData.append('subject', `New Purchase: ${compositionTitle}`);
+        formData.append('html', emailContent.html);
+        formData.append('text', emailContent.text);
+        
+        const response = await axios.post(
+          `https://api.mailgun.net/v3/${process.env.MAILGUN_DOMAIN}/messages`,
+          formData,
+          {
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString('base64')}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          }
+        );
+        
+        console.log(`✅ Admin notification sent via Mailgun for purchase ${orderId}`);
+        
+        return {
+          success: true,
+          messageId: response.data.id
+        };
+      } else {
+        // Fallback to SMTP
+        const result = await this.transporter.sendMail(mailOptions);
+        
+        console.log(`✅ Admin notification sent via SMTP for purchase ${orderId}`);
+        
+        return {
+          success: true,
+          messageId: result.messageId
+        };
+      }
 
     } catch (error) {
       console.error('Error sending admin notification:', error);

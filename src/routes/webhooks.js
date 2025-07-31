@@ -40,6 +40,11 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
         await handleCheckoutSessionCompleted(event.data.object);
         break;
       
+      case 'charge.succeeded':
+        console.log(`💳 Charge succeeded - processing...`);
+        await handleChargeSucceeded(event.data.object);
+        break;
+      
       case 'invoice.payment_succeeded':
         console.log(`📄 Invoice payment succeeded - processing...`);
         await handleInvoicePaymentSucceeded(event.data.object);
@@ -166,7 +171,7 @@ async function handlePaymentSuccess(paymentIntent) {
     // Send admin notification
     await emailService.sendAdminNotification(purchaseData);
 
-    console.log(`✅ Purchase processed successfully for ${compositionTitle}`);
+    console.log(`✅ Purchase processed successfully for ${finalCompositionTitle}`);
     
   } catch (error) {
     console.error('Error handling payment success:', error);
@@ -337,6 +342,116 @@ async function handleCheckoutSessionCompleted(session) {
     
   } catch (error) {
     console.error('Error handling checkout session:', error);
+  }
+}
+
+// Handle charge success
+async function handleChargeSucceeded(charge) {
+  try {
+    console.log(`💳 Charge succeeded: ${charge.id}`);
+    console.log(`📋 Charge metadata:`, JSON.stringify(charge.metadata, null, 2));
+    console.log(`📋 Charge description:`, charge.description);
+    console.log(`📋 Charge receipt_email:`, charge.receipt_email);
+    
+    // Get the payment intent to access its metadata
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const paymentIntent = await stripe.paymentIntents.retrieve(charge.payment_intent);
+    
+    console.log(`📋 Payment intent metadata:`, JSON.stringify(paymentIntent.metadata, null, 2));
+    
+    const {
+      compositionId,
+      compositionTitle,
+      customerEmail,
+      orderId,
+      slug,
+      Slug
+    } = paymentIntent.metadata;
+    
+    // Handle both lowercase and uppercase slug
+    const finalSlug = slug || Slug;
+    
+    // Try to get customer email from receipt_email if not in metadata
+    const finalCustomerEmail = customerEmail || charge.receipt_email;
+    
+    // If we have a slug, look up the composition from Notion
+    let composition = null;
+    let finalCompositionTitle = compositionTitle;
+    let finalCompositionId = compositionId;
+    
+    if (finalSlug) {
+      try {
+        console.log(`🔍 Looking up composition by slug: ${finalSlug}`);
+        composition = await notionService.getCompositionBySlug(finalSlug);
+        
+        if (composition) {
+          finalCompositionTitle = composition.title;
+          finalCompositionId = composition.id;
+          console.log(`✅ Found composition: ${finalCompositionTitle} (ID: ${finalCompositionId})`);
+        } else {
+          console.log(`⚠️ No composition found for slug: ${finalSlug}`);
+        }
+      } catch (error) {
+        console.log(`❌ Error looking up composition by slug: ${error.message}`);
+      }
+    }
+    
+    // Fallback to description if no composition found
+    if (!finalCompositionTitle) {
+      finalCompositionTitle = charge.description?.replace('Purchase: ', '') || 'Unknown Composition';
+    }
+
+    // Verify required metadata exists - only require compositionTitle and customerEmail
+    if (!finalCompositionTitle || !finalCustomerEmail) {
+      console.log('❌ Missing required metadata for charge success');
+      console.log(`   - compositionTitle: ${finalCompositionTitle ? 'present' : 'missing'}`);
+      console.log(`   - customerEmail: ${finalCustomerEmail ? 'present' : 'missing'}`);
+      console.log(`   - slug: ${finalSlug || 'not provided'}`);
+      console.log(`   - Original metadata:`, JSON.stringify(paymentIntent.metadata, null, 2));
+      return;
+    }
+
+    // Create purchase record
+    const purchaseData = {
+      orderId: orderId || charge.id,
+      paymentIntentId: charge.payment_intent,
+      customerEmail: finalCustomerEmail,
+      customerName: charge.receipt_email || finalCustomerEmail,
+      compositionId: finalCompositionId || `product_${Date.now()}`, // Use Notion ID if found, otherwise fallback
+      compositionTitle: finalCompositionTitle,
+      amount: charge.amount / 100, // Convert from cents
+      status: 'completed',
+      purchaseDate: new Date().toISOString()
+    };
+
+    // Save purchase record
+    await purchaseService.createPurchase(purchaseData);
+
+    // Try to get PDF path if compositionId is available, otherwise skip
+    let pdfPath = null;
+    if (finalCompositionId && finalCompositionId !== `product_${Date.now()}`) {
+      try {
+        pdfPath = await purchaseService.getCompositionPdfPath(finalCompositionId);
+      } catch (error) {
+        console.log(`⚠️ Could not get PDF path for compositionId ${finalCompositionId}:`, error.message);
+      }
+    }
+
+    // Send confirmation email with PDF
+    await emailService.sendPurchaseConfirmation({
+      ...purchaseData,
+      pdfPath,
+      price: purchaseData.amount
+    });
+
+    // Send admin notification
+    await emailService.sendAdminNotification(purchaseData);
+
+    console.log(`✅ Charge processed successfully for ${finalCompositionTitle}`);
+    
+  } catch (error) {
+    console.error('Error handling charge success:', error);
+    // Don't throw error to avoid webhook retry loops
   }
 }
 
