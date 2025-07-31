@@ -75,19 +75,21 @@ async function handlePaymentSuccess(paymentIntent) {
       orderId
     } = paymentIntent.metadata;
 
-    // Verify required metadata exists
-    if (!compositionId || !compositionTitle || !customerEmail) {
+    // Verify required metadata exists - only require compositionTitle and customerEmail
+    if (!compositionTitle || !customerEmail) {
       console.log('❌ Missing required metadata for payment success');
+      console.log(`   - compositionTitle: ${compositionTitle ? 'present' : 'missing'}`);
+      console.log(`   - customerEmail: ${customerEmail ? 'present' : 'missing'}`);
       return;
     }
 
     // Create purchase record
     const purchaseData = {
-      orderId,
+      orderId: orderId || paymentIntent.id,
       paymentIntentId: paymentIntent.id,
       customerEmail,
       customerName: paymentIntent.receipt_email || customerEmail,
-      compositionId,
+      compositionId: compositionId || `product_${Date.now()}`, // Generate fallback ID if not provided
       compositionTitle,
       amount: paymentIntent.amount / 100, // Convert from cents
       status: 'completed',
@@ -97,8 +99,15 @@ async function handlePaymentSuccess(paymentIntent) {
     // Save purchase record
     await purchaseService.createPurchase(purchaseData);
 
-    // Get PDF path for the composition
-    const pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+    // Try to get PDF path if compositionId is available, otherwise skip
+    let pdfPath = null;
+    if (compositionId) {
+      try {
+        pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+      } catch (error) {
+        console.log(`⚠️ Could not get PDF path for compositionId ${compositionId}:`, error.message);
+      }
+    }
 
     // Send confirmation email with PDF
     await emailService.sendPurchaseConfirmation({
@@ -130,13 +139,21 @@ async function handlePaymentFailure(paymentIntent) {
       orderId
     } = paymentIntent.metadata;
 
+    // Only require compositionTitle and customerEmail for failure handling
+    if (!compositionTitle || !customerEmail) {
+      console.log('❌ Missing required metadata for payment failure handling');
+      console.log(`   - compositionTitle: ${compositionTitle ? 'present' : 'missing'}`);
+      console.log(`   - customerEmail: ${customerEmail ? 'present' : 'missing'}`);
+      return;
+    }
+
     // Create failed purchase record
     const purchaseData = {
-      orderId,
+      orderId: orderId || paymentIntent.id,
       paymentIntentId: paymentIntent.id,
       customerEmail,
       customerName: paymentIntent.receipt_email || customerEmail,
-      compositionId,
+      compositionId: compositionId || `product_${Date.now()}`, // Generate fallback ID if not provided
       compositionTitle,
       amount: paymentIntent.amount / 100,
       status: 'failed',
@@ -170,23 +187,37 @@ async function handlePaymentFailure(paymentIntent) {
 async function handleCheckoutSessionCompleted(session) {
   try {
     console.log(`🛒 Checkout session completed: ${session.id}`);
+    console.log(`📋 Session metadata:`, JSON.stringify(session.metadata, null, 2));
+    console.log(`👤 Customer details:`, JSON.stringify(session.customer_details, null, 2));
+    console.log(`🛍️ Line items:`, JSON.stringify(session.line_items, null, 2));
     
-    // This handles cases where customers use Stripe Checkout
-    const {
-      compositionId,
-      compositionTitle
-    } = session.metadata;
-
+    // Get product name from line items (this is the composition title)
+    const productName = session.line_items?.data?.[0]?.description || 
+                       session.line_items?.data?.[0]?.price_data?.product_data?.name;
+    
+    // Try to get compositionId from metadata, but don't require it
+    const compositionId = session.metadata?.compositionId;
+    const compositionTitle = session.metadata?.compositionTitle || productName;
+    
     const customerEmail = session.customer_details?.email;
     const orderId = session.metadata?.orderId || session.id;
 
-    if (customerEmail && compositionId) {
+    console.log(`🔍 Extracted data:`);
+    console.log(`   - productName: ${productName}`);
+    console.log(`   - compositionId: ${compositionId || 'not provided'}`);
+    console.log(`   - compositionTitle: ${compositionTitle}`);
+    console.log(`   - customerEmail: ${customerEmail}`);
+    console.log(`   - orderId: ${orderId}`);
+
+    if (customerEmail && compositionTitle) {
+      console.log(`✅ Required data present, sending confirmation email...`);
+      
       const purchaseData = {
         orderId,
         paymentIntentId: session.payment_intent,
         customerEmail,
         customerName: session.customer_details?.name || customerEmail,
-        compositionId,
+        compositionId: compositionId || `product_${Date.now()}`, // Generate fallback ID if not provided
         compositionTitle,
         amount: session.amount_total / 100,
         status: 'completed',
@@ -195,7 +226,15 @@ async function handleCheckoutSessionCompleted(session) {
 
       await purchaseService.createPurchase(purchaseData);
 
-      const pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+      // Try to get PDF path if compositionId is available, otherwise skip
+      let pdfPath = null;
+      if (compositionId) {
+        try {
+          pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+        } catch (error) {
+          console.log(`⚠️ Could not get PDF path for compositionId ${compositionId}:`, error.message);
+        }
+      }
 
       await emailService.sendPurchaseConfirmation({
         ...purchaseData,
@@ -204,6 +243,12 @@ async function handleCheckoutSessionCompleted(session) {
       });
 
       await emailService.sendAdminNotification(purchaseData);
+      
+      console.log(`✅ Confirmation email sent to ${customerEmail}`);
+    } else {
+      console.log(`❌ Missing required data for email confirmation:`);
+      console.log(`   - customerEmail: ${customerEmail ? 'present' : 'missing'}`);
+      console.log(`   - compositionTitle: ${compositionTitle ? 'present' : 'missing'}`);
     }
     
   } catch (error) {
