@@ -41,8 +41,8 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
         break;
       
       case 'charge.succeeded':
-        console.log(`💳 Charge succeeded - processing...`);
-        await handleChargeSucceeded(event.data.object);
+        console.log(`💳 Charge succeeded - skipping (handled by checkout.session.completed)`);
+        // Skip charge.succeeded to avoid duplicate processing
         break;
       
       case 'invoice.payment_succeeded':

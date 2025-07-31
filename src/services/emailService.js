@@ -367,7 +367,7 @@ class EmailService {
         customerName: customerName || 'Unknown',
         compositionTitle,
         orderId,
-        price: `$${price.toFixed(2)}`,
+        price: price ? `$${price.toFixed(2)}` : 'N/A',
         purchaseDate: new Date().toLocaleDateString(),
         adminDashboard: `${process.env.ADMIN_URL}/orders/${orderId}`
       };
