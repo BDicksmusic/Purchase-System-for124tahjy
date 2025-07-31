@@ -192,8 +192,25 @@ async function handleCheckoutSessionCompleted(session) {
     console.log(`🛍️ Line items:`, JSON.stringify(session.line_items, null, 2));
     
     // Get product name from line items (this is the composition title)
-    const productName = session.line_items?.data?.[0]?.description || 
-                       session.line_items?.data?.[0]?.price_data?.product_data?.name;
+    let productName = session.line_items?.data?.[0]?.description || 
+                      session.line_items?.data?.[0]?.price_data?.product_data?.name;
+
+    // If line items were not expanded, fetch them directly from Stripe
+    if (!productName) {
+      try {
+        const fetchedLineItems = await stripeService.stripe.checkout.sessions.listLineItems(
+          session.id,
+          { limit: 1 }
+        );
+        if (fetchedLineItems?.data?.length) {
+          const li = fetchedLineItems.data[0];
+          productName = li.description || li.price?.product_data?.name || li.price?.product_data?.metadata?.title;
+          console.log(`🛍️ Retrieved line item product name: ${productName}`);
+        }
+      } catch (fetchErr) {
+        console.error('❌ Failed to fetch line items:', fetchErr.message);
+      }
+    }
     
     // Try to get compositionId from metadata, but don't require it
     const compositionId = session.metadata?.compositionId;
