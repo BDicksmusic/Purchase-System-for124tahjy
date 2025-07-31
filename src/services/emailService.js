@@ -259,6 +259,10 @@ class EmailService {
         return await this.sendPurchaseConfirmationWithMailgunTemplate(purchaseData);
       }
 
+      // Generate time-based download token (optional - for security)
+      const downloadExpires = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
+      const downloadToken = Buffer.from(`${orderId}-${downloadExpires}`).toString('base64');
+      
       // Prepare email template data
       const templateData = {
         customerName: customerName || 'Valued Customer',
@@ -266,7 +270,9 @@ class EmailService {
         orderId,
         purchaseDate: purchaseDate || new Date().toLocaleDateString(),
         price: `$${price.toFixed(2)}`,
-        downloadLink: purchaseData.pdfUrl ? `${process.env.WEBSITE_URL || process.env.FRONTEND_URL}/api/notion/compositions/slug/${purchaseData.slug}/file` : (purchaseData.pdfPath || `${process.env.FRONTEND_URL}/download/${orderId}`),
+        downloadLink: purchaseData.pdfUrl ? 
+          `${process.env.WEBSITE_URL || process.env.FRONTEND_URL}/api/notion/compositions/slug/${purchaseData.slug}/file?token=${downloadToken}&expires=${downloadExpires}` : 
+          (purchaseData.pdfPath || `${process.env.FRONTEND_URL}/download/${orderId}`),
         supportEmail: process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM
       };
 

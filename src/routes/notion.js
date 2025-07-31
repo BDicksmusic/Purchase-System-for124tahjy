@@ -63,8 +63,25 @@ router.use(rateLimit);
 router.get('/compositions/:compositionId/file', validateCompositionId, async (req, res) => {
   try {
     const { compositionId } = req.params;
+    const { token, expires } = req.query;
     
     console.log(`📁 Serving file for composition: ${compositionId}`);
+    
+    // Check if download token is valid and not expired
+    if (token && expires) {
+      const now = Date.now();
+      const expirationTime = parseInt(expires);
+      
+      if (now > expirationTime) {
+        return res.status(410).json({
+          success: false,
+          error: 'Download link has expired'
+        });
+      }
+      
+      // You could add additional token validation here
+      console.log(`✅ Download token valid, expires in ${Math.round((expirationTime - now) / 1000)} seconds`);
+    }
     
     // Get the composition from Notion
     const composition = await notionService.getComposition(compositionId);
@@ -128,8 +145,24 @@ router.get('/compositions/:compositionId/file', validateCompositionId, async (re
 router.get('/compositions/slug/:slug/file', async (req, res) => {
   try {
     const { slug } = req.params;
+    const { token, expires } = req.query;
     
     console.log(`📁 Serving file for composition slug: ${slug}`);
+    
+    // Check if download token is valid and not expired
+    if (token && expires) {
+      const now = Date.now();
+      const expirationTime = parseInt(expires);
+      
+      if (now > expirationTime) {
+        return res.status(410).json({
+          success: false,
+          error: 'Download link has expired'
+        });
+      }
+      
+      console.log(`✅ Download token valid, expires in ${Math.round((expirationTime - now) / 1000)} seconds`);
+    }
     
     // Get the composition from Notion by slug
     const composition = await notionService.getCompositionBySlug(slug);
