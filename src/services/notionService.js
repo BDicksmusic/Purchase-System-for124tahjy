@@ -104,6 +104,38 @@ class NotionService {
     }
   }
 
+  // Get a specific composition by slug
+  async getCompositionBySlug(slug) {
+    try {
+      console.log(`🔍 Searching for composition with slug: ${slug}`);
+      
+      const response = await axios.post(
+        `${this.baseURL}/databases/${this.databaseId}/query`,
+        {
+          filter: {
+            property: 'Slug',
+            rich_text: {
+              equals: slug
+            }
+          }
+        },
+        { headers: this.headers }
+      );
+
+      if (response.data.results.length === 0) {
+        console.log(`❌ No composition found with slug: ${slug}`);
+        return null;
+      }
+
+      const composition = this.parseNotionPage(response.data.results[0]);
+      console.log(`✅ Found composition: ${composition.title} (ID: ${composition.id})`);
+      return composition;
+    } catch (error) {
+      console.error('Error fetching composition by slug from Notion:', error);
+      throw new Error(`Notion API error: ${error.message}`);
+    }
+  }
+
   // Update composition price in Notion
   async updateCompositionPrice(compositionId, newPrice) {
     try {
@@ -170,6 +202,7 @@ class NotionService {
       category: this.getPropertyValue(properties, 'Category', 'select'),
       difficulty: this.getPropertyValue(properties, 'Difficulty', 'select'),
       composer: this.getPropertyValue(properties, 'Composer', 'rich_text'),
+      slug: this.getPropertyValue(properties, 'Slug', 'rich_text'),
       pdfUrl: this.getPropertyValue(properties, 'Website Download File', 'files'),
       imageUrl: this.getPropertyValue(properties, 'Image URL', 'url'),
       lastEdited: page.last_edited_time,

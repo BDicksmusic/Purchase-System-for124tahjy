@@ -3,6 +3,7 @@ const router = express.Router();
 const stripeService = require('../services/stripeService');
 const emailService = require('../services/emailService');
 const purchaseService = require('../services/purchaseService');
+const notionService = require('../services/notionService');
 
 // Stripe webhook endpoint
 router.post('/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -21,26 +22,32 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
   try {
     // Log the event type for debugging
     console.log(`📨 Processing webhook event: ${event.type}`);
+    console.log(`📋 Event data preview:`, JSON.stringify(event.data.object, null, 2).substring(0, 500) + '...');
     
     switch (event.type) {
       case 'payment_intent.succeeded':
+        console.log(`💰 Payment intent succeeded - processing...`);
         await handlePaymentSuccess(event.data.object);
         break;
       
       case 'payment_intent.payment_failed':
+        console.log(`❌ Payment intent failed - processing...`);
         await handlePaymentFailure(event.data.object);
         break;
       
       case 'checkout.session.completed':
+        console.log(`🛒 Checkout session completed - processing...`);
         await handleCheckoutSessionCompleted(event.data.object);
         break;
       
       case 'invoice.payment_succeeded':
+        console.log(`📄 Invoice payment succeeded - processing...`);
         await handleInvoicePaymentSucceeded(event.data.object);
         break;
       
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`⚠️ Unhandled event type: ${event.type}`);
+        console.log(`📋 Full event data:`, JSON.stringify(event, null, 2));
     }
 
     res.json({ received: true });
@@ -61,6 +68,9 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
 async function handlePaymentSuccess(paymentIntent) {
   try {
     console.log(`💰 Payment succeeded: ${paymentIntent.id}`);
+    console.log(`📋 Payment intent metadata:`, JSON.stringify(paymentIntent.metadata, null, 2));
+    console.log(`📋 Payment intent description:`, paymentIntent.description);
+    console.log(`📋 Payment intent receipt_email:`, paymentIntent.receipt_email);
     
     // Additional verification - ensure payment is actually successful
     if (paymentIntent.status !== 'succeeded') {
@@ -72,14 +82,51 @@ async function handlePaymentSuccess(paymentIntent) {
       compositionId,
       compositionTitle,
       customerEmail,
-      orderId
+      orderId,
+      slug,
+      Slug
     } = paymentIntent.metadata;
+    
+    // Handle both lowercase and uppercase slug
+    const finalSlug = slug || Slug;
+
+    // Try to get customer email from receipt_email if not in metadata
+    const finalCustomerEmail = customerEmail || paymentIntent.receipt_email;
+    
+    // If we have a slug, look up the composition from Notion
+    let composition = null;
+    let finalCompositionTitle = compositionTitle;
+    let finalCompositionId = compositionId;
+    
+    if (finalSlug) {
+      try {
+        console.log(`🔍 Looking up composition by slug: ${finalSlug}`);
+        composition = await notionService.getCompositionBySlug(finalSlug);
+        
+        if (composition) {
+          finalCompositionTitle = composition.title;
+          finalCompositionId = composition.id;
+          console.log(`✅ Found composition: ${finalCompositionTitle} (ID: ${finalCompositionId})`);
+        } else {
+          console.log(`⚠️ No composition found for slug: ${finalSlug}`);
+        }
+      } catch (error) {
+        console.log(`❌ Error looking up composition by slug: ${error.message}`);
+      }
+    }
+    
+    // Fallback to description if no composition found
+    if (!finalCompositionTitle) {
+      finalCompositionTitle = paymentIntent.description?.replace('Purchase: ', '') || 'Unknown Composition';
+    }
 
     // Verify required metadata exists - only require compositionTitle and customerEmail
-    if (!compositionTitle || !customerEmail) {
+    if (!finalCompositionTitle || !finalCustomerEmail) {
       console.log('❌ Missing required metadata for payment success');
-      console.log(`   - compositionTitle: ${compositionTitle ? 'present' : 'missing'}`);
-      console.log(`   - customerEmail: ${customerEmail ? 'present' : 'missing'}`);
+      console.log(`   - compositionTitle: ${finalCompositionTitle ? 'present' : 'missing'}`);
+      console.log(`   - customerEmail: ${finalCustomerEmail ? 'present' : 'missing'}`);
+      console.log(`   - slug: ${finalSlug || 'not provided'}`);
+      console.log(`   - Original metadata:`, JSON.stringify(paymentIntent.metadata, null, 2));
       return;
     }
 
@@ -87,10 +134,10 @@ async function handlePaymentSuccess(paymentIntent) {
     const purchaseData = {
       orderId: orderId || paymentIntent.id,
       paymentIntentId: paymentIntent.id,
-      customerEmail,
-      customerName: paymentIntent.receipt_email || customerEmail,
-      compositionId: compositionId || `product_${Date.now()}`, // Generate fallback ID if not provided
-      compositionTitle,
+      customerEmail: finalCustomerEmail,
+      customerName: paymentIntent.receipt_email || finalCustomerEmail,
+      compositionId: finalCompositionId || `product_${Date.now()}`, // Use Notion ID if found, otherwise fallback
+      compositionTitle: finalCompositionTitle,
       amount: paymentIntent.amount / 100, // Convert from cents
       status: 'completed',
       purchaseDate: new Date().toISOString()
@@ -101,11 +148,11 @@ async function handlePaymentSuccess(paymentIntent) {
 
     // Try to get PDF path if compositionId is available, otherwise skip
     let pdfPath = null;
-    if (compositionId) {
+    if (finalCompositionId && finalCompositionId !== `product_${Date.now()}`) {
       try {
-        pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+        pdfPath = await purchaseService.getCompositionPdfPath(finalCompositionId);
       } catch (error) {
-        console.log(`⚠️ Could not get PDF path for compositionId ${compositionId}:`, error.message);
+        console.log(`⚠️ Could not get PDF path for compositionId ${finalCompositionId}:`, error.message);
       }
     }
 
@@ -191,20 +238,57 @@ async function handleCheckoutSessionCompleted(session) {
     console.log(`👤 Customer details:`, JSON.stringify(session.customer_details, null, 2));
     console.log(`🛍️ Line items:`, JSON.stringify(session.line_items, null, 2));
     
-    // Get product name from line items (this is the composition title)
-    const productName = session.line_items?.data?.[0]?.description || 
-                       session.line_items?.data?.[0]?.price_data?.product_data?.name;
+    // If line_items is undefined, retrieve the full session from Stripe
+    let fullSession = session;
+    if (!session.line_items) {
+      console.log(`🔄 Line items missing, retrieving full session from Stripe...`);
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+        expand: ['line_items']
+      });
+      console.log(`📦 Retrieved full session with line items:`, JSON.stringify(fullSession.line_items, null, 2));
+    }
     
-    // Try to get compositionId from metadata, but don't require it
+    // Get product name from line items (this is the composition title)
+    const productName = fullSession.line_items?.data?.[0]?.description || 
+                       fullSession.line_items?.data?.[0]?.price_data?.product_data?.name ||
+                       fullSession.line_items?.data?.[0]?.price?.product?.name;
+    
+    // Try to get compositionId and slug from metadata
     const compositionId = session.metadata?.compositionId;
-    const compositionTitle = session.metadata?.compositionTitle || productName;
+    const slug = session.metadata?.slug;
+    const Slug = session.metadata?.Slug;
+    let compositionTitle = session.metadata?.compositionTitle || productName;
+    let finalCompositionId = compositionId;
+    
+    // Handle both lowercase and uppercase slug
+    const finalSlug = slug || Slug;
     
     const customerEmail = session.customer_details?.email;
     const orderId = session.metadata?.orderId || session.id;
 
+    // If we have a slug, look up the composition from Notion
+    if (finalSlug) {
+      try {
+        console.log(`🔍 Looking up composition by slug: ${finalSlug}`);
+        const composition = await notionService.getCompositionBySlug(finalSlug);
+        
+        if (composition) {
+          compositionTitle = composition.title;
+          finalCompositionId = composition.id;
+          console.log(`✅ Found composition: ${compositionTitle} (ID: ${finalCompositionId})`);
+        } else {
+          console.log(`⚠️ No composition found for slug: ${finalSlug}`);
+        }
+      } catch (error) {
+        console.log(`❌ Error looking up composition by slug: ${error.message}`);
+      }
+    }
+
     console.log(`🔍 Extracted data:`);
     console.log(`   - productName: ${productName}`);
-    console.log(`   - compositionId: ${compositionId || 'not provided'}`);
+    console.log(`   - slug: ${finalSlug || 'not provided'}`);
+    console.log(`   - compositionId: ${finalCompositionId || 'not provided'}`);
     console.log(`   - compositionTitle: ${compositionTitle}`);
     console.log(`   - customerEmail: ${customerEmail}`);
     console.log(`   - orderId: ${orderId}`);
@@ -217,7 +301,7 @@ async function handleCheckoutSessionCompleted(session) {
         paymentIntentId: session.payment_intent,
         customerEmail,
         customerName: session.customer_details?.name || customerEmail,
-        compositionId: compositionId || `product_${Date.now()}`, // Generate fallback ID if not provided
+        compositionId: finalCompositionId || `product_${Date.now()}`, // Use Notion ID if found, otherwise fallback
         compositionTitle,
         amount: session.amount_total / 100,
         status: 'completed',
@@ -228,11 +312,11 @@ async function handleCheckoutSessionCompleted(session) {
 
       // Try to get PDF path if compositionId is available, otherwise skip
       let pdfPath = null;
-      if (compositionId) {
+      if (finalCompositionId && finalCompositionId !== `product_${Date.now()}`) {
         try {
-          pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+          pdfPath = await purchaseService.getCompositionPdfPath(finalCompositionId);
         } catch (error) {
-          console.log(`⚠️ Could not get PDF path for compositionId ${compositionId}:`, error.message);
+          console.log(`⚠️ Could not get PDF path for compositionId ${finalCompositionId}:`, error.message);
         }
       }
 
@@ -308,6 +392,126 @@ router.get('/health', (req, res) => {
       email: 'active'
     }
   });
+});
+
+// Order confirmation endpoint for dynamic confirmation page
+router.get('/order-confirmation', async (req, res) => {
+  const { session_id } = req.query;
+  
+  if (!session_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Session ID is required'
+    });
+  }
+  
+  try {
+    console.log(`🔍 Fetching order details for session: ${session_id}`);
+    
+    // Get session from Stripe
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    
+    console.log(`📋 Session data:`, JSON.stringify(session, null, 2));
+    
+    // Extract composition details from session
+    const compositionTitle = session.line_items?.data?.[0]?.description || 
+                           session.line_items?.data?.[0]?.price_data?.product_data?.name ||
+                           'Unknown Composition';
+    
+    const compositionId = session.metadata?.compositionId;
+    
+    // Try to get PDF path if compositionId is available
+    let downloadUrl = null;
+    if (compositionId) {
+      try {
+        const pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+        if (pdfPath) {
+          // Generate a download URL (you might need to adjust this based on your file serving setup)
+          downloadUrl = `/api/download/${compositionId}`;
+        }
+      } catch (error) {
+        console.log(`⚠️ Could not get PDF path for compositionId ${compositionId}:`, error.message);
+      }
+    }
+    
+    const orderDetails = {
+      orderId: session.id,
+      compositionTitle,
+      compositionId: compositionId || 'unknown',
+      amount: (session.amount_total / 100).toFixed(2),
+      purchaseDate: new Date(session.created * 1000).toISOString(),
+      customerEmail: session.customer_details?.email,
+      customerName: session.customer_details?.name,
+      downloadUrl
+    };
+    
+    console.log(`✅ Order details prepared:`, JSON.stringify(orderDetails, null, 2));
+    
+    res.json({
+      success: true,
+      order: orderDetails
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching order details:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch order details',
+      message: error.message
+    });
+  }
+});
+
+// Download endpoint for PDF files
+router.get('/download/:compositionId', async (req, res) => {
+  const { compositionId } = req.params;
+  
+  if (!compositionId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Composition ID is required'
+    });
+  }
+  
+  try {
+    console.log(`📥 Download request for composition: ${compositionId}`);
+    
+    // Get PDF path from purchase service
+    const pdfPath = await purchaseService.getCompositionPdfPath(compositionId);
+    
+    if (!pdfPath) {
+      return res.status(404).json({
+        success: false,
+        error: 'PDF file not found'
+      });
+    }
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${compositionId}.pdf"`);
+    
+    // Send the file
+    res.sendFile(pdfPath, (err) => {
+      if (err) {
+        console.error('❌ Error sending PDF file:', err);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to send PDF file'
+        });
+      } else {
+        console.log(`✅ PDF file sent successfully: ${compositionId}`);
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error processing download request:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process download request',
+      message: error.message
+    });
+  }
 });
 
 module.exports = router; 
