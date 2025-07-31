@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const notionService = require('../services/notionService');
+const axios = require('axios');
 
 // Security: Input validation middleware
 const validateCompositionId = (req, res, next) => {
@@ -57,6 +58,136 @@ const rateLimit = (req, res, next) => {
 
 // Apply rate limiting to all routes
 router.use(rateLimit);
+
+// NEW: Serve Notion file content for compositions
+router.get('/compositions/:compositionId/file', validateCompositionId, async (req, res) => {
+  try {
+    const { compositionId } = req.params;
+    
+    console.log(`📁 Serving file for composition: ${compositionId}`);
+    
+    // Get the composition from Notion
+    const composition = await notionService.getComposition(compositionId);
+    
+    if (!composition) {
+      return res.status(404).json({
+        success: false,
+        error: 'Composition not found'
+      });
+    }
+
+    if (!composition.pdfUrl) {
+      return res.status(404).json({
+        success: false,
+        error: 'No file available for this composition'
+      });
+    }
+
+    console.log(`📥 Downloading file from Notion: ${composition.pdfUrl}`);
+
+    // Download the file from Notion
+    const fileResponse = await axios.get(composition.pdfUrl, {
+      responseType: 'arraybuffer',
+      timeout: 30000, // 30 second timeout
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Notion-File-Server/1.0)'
+      }
+    });
+
+    if (fileResponse.status === 200 && fileResponse.data) {
+      const buffer = Buffer.from(fileResponse.data);
+      
+      // Set appropriate headers for file download
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${composition.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf"`,
+        'Content-Length': buffer.length,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+
+      console.log(`✅ Serving file: ${composition.title} (${buffer.length} bytes)`);
+      
+      // Send the file buffer
+      res.send(buffer);
+    } else {
+      throw new Error(`Failed to download file from Notion (status: ${fileResponse.status})`);
+    }
+
+  } catch (error) {
+    console.error('Error serving composition file:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to serve file'
+    });
+  }
+});
+
+// NEW: Serve Notion file content by slug
+router.get('/compositions/slug/:slug/file', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    console.log(`📁 Serving file for composition slug: ${slug}`);
+    
+    // Get the composition from Notion by slug
+    const composition = await notionService.getCompositionBySlug(slug);
+    
+    if (!composition) {
+      return res.status(404).json({
+        success: false,
+        error: 'Composition not found'
+      });
+    }
+
+    if (!composition.pdfUrl) {
+      return res.status(404).json({
+        success: false,
+        error: 'No file available for this composition'
+      });
+    }
+
+    console.log(`📥 Downloading file from Notion: ${composition.pdfUrl}`);
+
+    // Download the file from Notion
+    const fileResponse = await axios.get(composition.pdfUrl, {
+      responseType: 'arraybuffer',
+      timeout: 30000, // 30 second timeout
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Notion-File-Server/1.0)'
+      }
+    });
+
+    if (fileResponse.status === 200 && fileResponse.data) {
+      const buffer = Buffer.from(fileResponse.data);
+      
+      // Set appropriate headers for file download
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${composition.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf"`,
+        'Content-Length': buffer.length,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+
+      console.log(`✅ Serving file: ${composition.title} (${buffer.length} bytes)`);
+      
+      // Send the file buffer
+      res.send(buffer);
+    } else {
+      throw new Error(`Failed to download file from Notion (status: ${fileResponse.status})`);
+    }
+
+  } catch (error) {
+    console.error('Error serving composition file by slug:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to serve file'
+    });
+  }
+});
 
 // Get all compositions from Notion
 router.get('/compositions', async (req, res) => {

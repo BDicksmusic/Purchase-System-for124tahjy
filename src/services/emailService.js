@@ -266,7 +266,7 @@ class EmailService {
         orderId,
         purchaseDate: purchaseDate || new Date().toLocaleDateString(),
         price: `$${price.toFixed(2)}`,
-        downloadLink: purchaseData.pdfUrl || purchaseData.pdfPath || `${process.env.FRONTEND_URL}/download/${orderId}`,
+        downloadLink: purchaseData.pdfUrl ? `${process.env.WEBSITE_URL || process.env.FRONTEND_URL}/api/notion/compositions/slug/${purchaseData.slug}/file` : (purchaseData.pdfPath || `${process.env.FRONTEND_URL}/download/${orderId}`),
         supportEmail: process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM
       };
 
